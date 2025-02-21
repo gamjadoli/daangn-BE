@@ -44,6 +44,8 @@ http://127.0.0.1:8000/api/docs
 ---
 
 ## ERD 설계
+![ERD 설계](https://github.com/user-attachments/assets/c89dcbe9-a762-473d-906d-c172460d599c)
+
 
 ### 1. 프로젝트 개요
 이 프로젝트는 Django 기반의 백엔드 API 서버로, Poetry를 사용한 의존성 관리와 Docker를 통한 컨테이너화를 구현하고 있습니다.

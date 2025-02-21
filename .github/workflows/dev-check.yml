@@ -1,0 +1,58 @@
+name: Dev Branch Migration Check
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+
+    # env:
+    #   DEV_AWS_RDS_NAME: ${{ secrets.DEV_AWS_RDS_NAME }}
+    #   DEV_AWS_RDS_USER: ${{ secrets.DEV_AWS_RDS_USER }}
+    #   DEV_AWS_RDS_PASSWORD: ${{ secrets.DEV_AWS_RDS_PASSWORD }}
+    #   DEV_AWS_RDS_HOST: ${{ secrets.DEV_AWS_RDS_HOST }}
+    #   DEV_AWS_RDS_PORT: ${{ secrets.DEV_AWS_RDS_PORT }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create false
+
+      - name: Install dependencies
+        run: |
+          cd django
+          poetry install
+
+      - name: Remove existing migrations
+        run: |
+          cd django
+          rm -f */migrations/0*.py
+
+      - name: Check migrations
+        run: |
+          cd django
+          poetry run python manage.py makemigrations --settings=a_core.settings.dev-aws
+          poetry run python manage.py migrate --settings=a_core.settings.dev-aws
+
+      - name: Check runserver
+        run: |
+          cd django
+          timeout 5s poetry run python manage.py runserver --settings=a_core.settings.dev-aws || code=$?; if [ $code -eq 124 ]; then exit 0; else exit $code; fi

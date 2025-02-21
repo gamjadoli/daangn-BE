@@ -1,0 +1,17 @@
+name: Restrict Pull Requests to main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  restrict-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if PR source is dev
+        run: |
+          if [[ "${{ github.head_ref }}" != "dev" ]]; then
+            echo "❌ Pull requests to 'main' must come from 'dev' branch only."
+            exit 1
+          fi

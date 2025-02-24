@@ -5,18 +5,18 @@ from pydantic import EmailStr, field_validator, model_validator
 
 
 class EmailVerificationRequestSchema(Schema):
-    email: str
+    email: EmailStr
 
 
 class SignupSchema(Schema):
-    username: str
-    password: Optional[str] = None
+    email: EmailStr
+    password: str
+    nickname: str
     phone_number: str
-    email: str
 
 
 class LoginSchema(Schema):
-    email: str
+    email: EmailStr
     password: str
 
 
@@ -26,14 +26,23 @@ class TokenSchema(Schema):
 
 
 class UserSchema(Schema):
-    email: str
+    email: EmailStr
+    nickname: str
+    phone_number: str
+    rating_score: float
+    is_activated: bool
+    is_email_verified: bool
+    profile_img_url: Optional[str] = None
 
 
 class UserResponseSchema(Schema):
-    email: str
-    username: str
+    email: EmailStr
+    nickname: str
     phone_number: str
-    is_active: bool
+    is_activated: bool
+    is_email_verified: bool
+    rating_score: float
+    profile_img_url: Optional[str] = None
 
 
 class AuthResponseSchema(Schema):
@@ -79,6 +88,6 @@ class ErrorResponseSchema(Schema):
 
 
 class UpdateProfileSchema(Schema):
-    username: Optional[str] = None
+    nickname: Optional[str] = None
     password: Optional[str] = None
     phone_number: Optional[str] = None

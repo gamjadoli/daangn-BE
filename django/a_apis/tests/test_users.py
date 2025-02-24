@@ -13,11 +13,18 @@ from django.utils import timezone
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class UserLoginTest(TestCase):
     def setUp(self):
+        """각 테스트 실행 전 실행되는 초기화 메서드"""
         self.client = Client()
-        self.email = "test@example.com"
-        self.password = "testpass123"
-        self.username = "testuser"
-        self.verification_code = "123456"
+
+        # 테스트용 사용자 정보
+        self.test_user_data = {
+            "email": "ljhx6787@naver.com",
+            "password": "testPassword123!",
+            "nickname": "테스트닉네임",
+            "phone_number": "01012345678",
+        }
+
+        self.verification_code = None  # 이메일 인증 과정에서 설정됨
 
     def test_request_email_verification_success(self):
         """이메일 인증 요청 테스트"""
@@ -26,7 +33,7 @@ class UserLoginTest(TestCase):
 
         response = self.client.post(
             "/api/users/request-email-verification",
-            data=json.dumps({"email": self.email}),
+            data=json.dumps({"email": self.test_user_data["email"]}),
             content_type="application/json",
         )
 
@@ -50,7 +57,9 @@ class UserLoginTest(TestCase):
         # 받아온 인증번호로 이메일 인증 시도
         response = self.client.post(
             "/api/users/verify-email",
-            data=json.dumps({"email": self.email, "code": self.verification_code}),
+            data=json.dumps(
+                {"email": self.test_user_data["email"], "code": self.verification_code}
+            ),
             content_type="application/json",
         )
 
@@ -59,20 +68,11 @@ class UserLoginTest(TestCase):
 
     def test_signup_success(self):
         """정상적인 회원가입 테스트"""
-
         self.test_verify_email_success()
-
-        # 회원가입 요청
-        signup_data = {
-            "username": "newuser",
-            "password": "newpass123",
-            "phone_number": "01012345678",
-            "email": "test@example.com",
-        }
 
         response = self.client.post(
             "/api/users/signup",
-            data=json.dumps(signup_data),
+            data=json.dumps(self.test_user_data),
             content_type="application/json",
         )
 
@@ -83,5 +83,7 @@ class UserLoginTest(TestCase):
         self.assertEqual(response_data["message"], "회원가입이 완료되었습니다.")
         self.assertIn("tokens", response_data)
         self.assertIn("user", response_data)
-        self.assertEqual(response_data["user"]["email"], signup_data["email"])
-        self.assertEqual(response_data["user"]["username"], signup_data["username"])
+        self.assertEqual(response_data["user"]["email"], self.test_user_data["email"])
+        self.assertEqual(
+            response_data["user"]["nickname"], self.test_user_data["nickname"]
+        )

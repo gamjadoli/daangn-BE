@@ -11,9 +11,9 @@ ALLOWED_HOSTS = [
     "52.78.37.115",  # EC2 IP
 ]
 CORS_ALLOWED_ORIGINS = [
-    "https://myapp.com", # 프론트 배포 도메인
-    "https://www.myapp.com", # 프론트 배포 도메인
-    "https://api.myapp.com", # 백엔드 배포 도메인
+    "https://myapp.com",  # 프론트 배포 도메인
+    "https://www.myapp.com",  # 프론트 배포 도메인
+    "https://api.myapp.com",  # 백엔드 배포 도메인
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
@@ -22,9 +22,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://myapp.com",
     "https://www.myapp.com",
     "https://api.myapp.com",
-    "http://localhost:5173", # Vite dev server
-    "http://localhost:3000", # React / Next.js dev server
-    "http://localhost:8000", # Django dev server
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:3000",  # React / Next.js dev server
+    "http://localhost:8000",  # Django dev server
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False

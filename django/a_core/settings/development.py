@@ -9,11 +9,12 @@ INSTALLED_APPS += [
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "api.myapp.com"]
 SERVER_BASE_URL = "http://localhost:3000"
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND 설정 제거 (base.py의 SMTP 설정 사용)
+
 
 CORS_ALLOWED_ORIGINS = [
     "https://myapp.com",
-    "https://api.myapp.com", 
+    "https://api.myapp.com",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
@@ -47,7 +48,7 @@ SHELL_PLUS_IMPORTS = [
 
 # JWT 설정
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7), # 개발환경에서는 7일로 설정
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # 개발환경에서는 7일로 설정
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,

@@ -69,11 +69,12 @@ class UserService:
             return {"success": False, "message": str(e)}
 
     @staticmethod
-    def login_user(request, email: str, password: str):
-        user = authenticate(request, username=email, password=password)
+    # 로그인 로직
+    def login_user(request, data: LoginSchema):
+        """로그인 처리"""
+        user = authenticate(request, username=data.email, password=data.password)
         if user:
-            email_address = EmailAddress.objects.filter(user=user, primary=True).first()
-            if email_address and email_address.verified:
+            if user.is_email_verified:  # allauth 대신 User 모델의 필드 사용
                 login(request, user)
                 refresh = RefreshToken.for_user(user)
                 return {
@@ -82,6 +83,17 @@ class UserService:
                     "tokens": {
                         "access": str(refresh.access_token),
                         "refresh": str(refresh),
+                    },
+                    "user": {
+                        "email": user.email,
+                        "nickname": user.nickname,
+                        "phone_number": user.phone_number,
+                        "is_activated": user.is_activated,
+                        "is_email_verified": user.is_email_verified,
+                        "rating_score": float(user.rating_score),
+                        "profile_img_url": (
+                            user.profile_img.file.url if user.profile_img else None
+                        ),
                     },
                 }
             return {"success": False, "message": "이메일 인증이 필요합니다."}

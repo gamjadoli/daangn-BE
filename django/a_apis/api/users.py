@@ -16,12 +16,12 @@ def login(request, data: LoginSchema):
     """
     로그인 엔드포인트
 
-    Args:
-        request: HTTP 요청 객체
-        data: 로그인 데이터 (LoginSchema)
+        Args:
+            request: HTTP 요청 객체
+            data: 로그인 데이터 (LoginSchema)
 
-    Returns:
-        AuthResponseSchema: 로그인 결과 및 토큰 정보
+        Returns:
+            AuthResponseSchema: 로그인 결과 및 토큰 정보
     """
     return UserService.login_user(request, data)
 

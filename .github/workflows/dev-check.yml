@@ -3,10 +3,10 @@ name: Dev Branch Migration Check
 on:
   push:
     branches:
-      - dev
+      - develop
   pull_request:
     branches:
-      - dev
+      - develop
 
 jobs:
   migration-check:

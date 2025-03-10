@@ -6,25 +6,24 @@ INSTALLED_APPS += [
     "django_extensions",
 ]
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "api.myapp.com"]
+ALLOWED_HOSTS = ["*"]
 SERVER_BASE_URL = "http://localhost:3000"
 
 # EMAIL_BACKEND 설정 제거 (base.py의 SMTP 설정 사용)
 
 
-CORS_ALLOWED_ORIGINS = [
-    "https://myapp.com",
-    "https://api.myapp.com",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8000",
-]
-
+# CORS 설정
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",  # PostGIS 엔진 사용
+        "NAME": os.getenv("DEV_DB_NAME"),
+        "USER": os.getenv("DEV_DB_USER"),  # 기본 PostgreSQL 유저네임
+        "PASSWORD": os.getenv("DEV_DB_PASSWORD"),  # PostgreSQL 설치시 지정한 비밀번호
+        "HOST": os.getenv("DEV_DB_HOST"),
+        "PORT": os.getenv("DEV_DB_PORT"),
     }
 }
 
@@ -62,4 +61,19 @@ SIMPLE_JWT = {
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+}
+
+# 디버그 로깅 설정
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
 }

@@ -8,6 +8,7 @@ from a_apis.models.region import (
 
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
+from django.utils.html import format_html
 
 
 class ProductImageInline(admin.TabularInline):
@@ -15,6 +16,16 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
     verbose_name = "상품 이미지"
     verbose_name_plural = "상품 이미지 목록"
+    readonly_fields = ["image_preview"]
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="150" height="150" />', obj.image.url
+            )
+        return "이미지 없음"
+
+    image_preview.short_description = "이미지 미리보기"
 
 
 @admin.register(Product)
@@ -88,6 +99,23 @@ class ProductAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user")
+
+
+@admin.register(ProductImage)
+class ProductImageAdmin(admin.ModelAdmin):
+    list_display = ("id", "product", "image_preview", "created_at")
+    search_fields = ("product__title",)
+    list_filter = ("created_at",)
+    readonly_fields = ["image_preview"]
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="150" height="150" />', obj.image.url
+            )
+        return "이미지 없음"
+
+    image_preview.short_description = "이미지 미리보기"
 
 
 @admin.register(SidoRegion)

@@ -1,8 +1,6 @@
 from a_apis.auth.bearer import AuthBearer
 from a_apis.models import EmailVerification
 from a_apis.schema.users import *
-
-# from a_apis.service.common_parser import CommonParser
 from a_apis.service.email import EmailService
 from a_apis.service.users import UserService
 from ninja import Router

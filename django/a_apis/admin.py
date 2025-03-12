@@ -1,6 +1,13 @@
 from a_apis.models.product import Product, ProductImage
+from a_apis.models.region import (
+    EupmyeondongRegion,
+    SidoRegion,
+    SigunguRegion,
+    UserActivityRegion,
+)
 
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin
 
 
 class ProductImageInline(admin.TabularInline):
@@ -81,3 +88,68 @@ class ProductAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user")
+
+
+@admin.register(SidoRegion)
+class SidoRegionAdmin(GISModelAdmin):
+    list_display = ("name", "code", "created_at", "updated_at")
+    search_fields = ("name", "code")
+    ordering = ("code",)
+
+
+@admin.register(SigunguRegion)
+class SigunguRegionAdmin(GISModelAdmin):
+    list_display = ("name", "code", "sido", "created_at", "updated_at")
+    search_fields = ("name", "code", "sido__name")
+    list_filter = ("sido",)
+    ordering = ("code",)
+    autocomplete_fields = ["sido"]
+
+
+@admin.register(EupmyeondongRegion)
+class EupmyeondongRegionAdmin(GISModelAdmin):
+    list_display = ("name", "code", "sigungu", "created_at", "updated_at")
+    search_fields = ("name", "code", "sigungu__name", "sigungu__sido__name")
+    list_filter = ("sigungu__sido",)
+    ordering = ("code",)
+    autocomplete_fields = ["sigungu"]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("sigungu", "sigungu__sido")
+
+
+@admin.register(UserActivityRegion)
+class UserActivityRegionAdmin(GISModelAdmin):
+    list_display = (
+        "user",
+        "get_region_name",
+        "priority",
+        "verified_at",
+        "last_verified_at",
+    )
+    search_fields = (
+        "user__email",
+        "activity_area__name",
+        "activity_area__sigungu__name",
+        "activity_area__sigungu__sido__name",
+    )
+    list_filter = ("priority", "verified_at")
+    ordering = ("user", "priority")
+    raw_id_fields = ("user", "activity_area")
+
+    def get_region_name(self, obj):
+        return f"{obj.activity_area.sigungu.sido.name} {obj.activity_area.sigungu.name} {obj.activity_area.name}"
+
+    get_region_name.short_description = "활동지역"
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related(
+                "user",
+                "activity_area",
+                "activity_area__sigungu",
+                "activity_area__sigungu__sido",
+            )
+        )

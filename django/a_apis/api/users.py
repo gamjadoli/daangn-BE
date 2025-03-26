@@ -1,6 +1,8 @@
 from a_apis.auth.bearer import AuthBearer
 from a_apis.models import EmailVerification
 from a_apis.schema.users import *
+
+# from a_apis.service.common_parser import CommonParser
 from a_apis.service.email import EmailService
 from a_apis.service.users import UserService
 from ninja import Router
@@ -14,17 +16,19 @@ def login(request, data: LoginSchema):
     """
     로그인 엔드포인트
 
-        Args:
-            request: HTTP 요청 객체
-            data: 로그인 데이터 (LoginSchema)
+    Args:
+        request: HTTP 요청 객체
+        data: 로그인 데이터 (LoginSchema)
 
-        Returns:
-            AuthResponseSchema: 로그인 결과 및 토큰 정보
+    Returns:
+        AuthResponseSchema: 로그인 결과 및 토큰 정보
     """
     return UserService.login_user(request, data)
 
 
-@public_router.post("/signup", response=AuthResponseSchema)
+@public_router.post(
+    "/signup", response={200: AuthResponseSchema, 400: ErrorResponseSchema}
+)
 def signup(request, data: SignupSchema):
     """
     회원가입 엔드포인트
@@ -34,9 +38,13 @@ def signup(request, data: SignupSchema):
         data: 회원가입 데이터 (SignupSchema)
 
     Returns:
-        AuthResponseSchema: 회원가입 결과 및 토큰 정보
+        200: 성공 시 사용자 정보와 토큰이 포함된 응답
+        400: 실패 시 에러 메시지
     """
-    return UserService.signup(data)
+    result = UserService.signup(data)
+    if not result["success"]:
+        return 400, result
+    return 200, result
 
 
 @router.get("/me", response=AuthResponseSchema)

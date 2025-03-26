@@ -1,7 +1,6 @@
 from a_apis.auth.bearer import AuthBearer
 from a_apis.schema.products import (
     ProductCreateSchema,
-    ProductListResponseSchema,
     ProductResponseSchema,
 )
 from a_apis.service.products import ProductService
@@ -14,24 +13,18 @@ from django.db import transaction
 router = Router(auth=AuthBearer())
 
 
-@router.post("/", response=ProductResponseSchema)
-@transaction.atomic
-def create_product(
-    request, data: ProductCreateSchema, images: list[UploadedFile] = File(None)
-):
-    """상품 등록 API"""
-    return ProductService.create_product(
-        user_id=request.user.id, data=data, images=images
-    )
-
-
 @router.post("/my-products", response=ProductResponseSchema)
+@transaction.atomic  # 트랜잭션 추가
 def create_my_product(
     request,
     data: ProductCreateSchema,
     images: list[UploadedFile] = File(...),  # 필수
 ):
-    """내 물건팔기 API"""
+    """내 물건팔기 API
+
+    이미지는 최대 10장까지 등록 가능하며,
+    판매하기 선택 시 가격 입력이 필수입니다.
+    """
     # 이미지 개수 검증
     if len(images) > 10:
         return {

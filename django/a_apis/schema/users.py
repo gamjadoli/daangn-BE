@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ninja import Schema
 from pydantic import EmailStr, field_validator, model_validator
@@ -45,11 +45,18 @@ class UserResponseSchema(Schema):
     profile_img_url: Optional[str] = None
 
 
-class AuthResponseSchema(Schema):
+class BaseResponseSchema(Schema):
+    """기본 응답 스키마"""
+
     success: bool
     message: str
-    tokens: Optional[TokenSchema] = None
-    user: Optional[UserResponseSchema] = None
+    data: Optional[Dict[str, Any]] = None
+    tokens: Optional[Dict[str, str]] = None
+
+
+# AuthResponseSchema와 ErrorResponseSchema를 BaseResponseSchema로 통일
+AuthResponseSchema = BaseResponseSchema
+ErrorResponseSchema = BaseResponseSchema
 
 
 class RefreshTokenSchema(Schema):
@@ -80,11 +87,6 @@ class EmailVerificationSchema(Schema):
 
 class LogoutSchema(Schema):
     refresh_token: str
-
-
-class ErrorResponseSchema(Schema):
-    success: bool
-    message: Optional[str] = None
 
 
 class UpdateProfileSchema(Schema):

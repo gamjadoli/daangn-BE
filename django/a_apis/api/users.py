@@ -35,7 +35,7 @@ def signup(request, data: SignupSchema):
 
     Args:
         request: HTTP 요청 객체
-        data: 회원가입 데이터 (SignupSchema)
+        data: 회원가입 데이터 (SignupSchema - 위치 정보 포함)
 
     Returns:
         200: 성공 시 사용자 정보와 토큰이 포함된 응답

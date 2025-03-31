@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from a_apis.auth.cookies import create_auth_response
 from a_apis.models import EmailVerification
 from allauth.account.models import EmailAddress
@@ -15,10 +17,14 @@ class UserService:
         """회원가입 서비스
 
         Args:
-            data: SignupSchema의 데이터
+            data: SignupSchema 데이터
                 - email: 이메일
                 - password: 비밀번호
                 - nickname: 닉네임
+                - phone_number: 전화번호
+                - latitude: 위도 (위치 인증 좌표)
+                - longitude: 경도 (위치 인증 좌표)
+                - eupmyeondong_code: 읍면동 코드 (활동지역 코드)
         """
         try:
             # 이메일 중복 체크
@@ -43,14 +49,103 @@ class UserService:
                     "tokens": None,
                 }
 
-            # 사용자 생성 (이메일 인증 완료 상태로)
+            # 사용자 생성
             user = User.objects.create_user(
                 username=data.email,
                 email=data.email,
                 password=data.password,
                 nickname=data.nickname,
+                phone_number=data.phone_number,
                 is_email_verified=True,  # 이메일 인증 완료 상태로 설정
             )
+
+            # 위치 정보가 제공된 경우 활동지역 등록
+            has_location = (
+                hasattr(data, "latitude")
+                and hasattr(data, "longitude")
+                and hasattr(data, "eupmyeondong_code")
+            )
+            if has_location:
+                from a_apis.models.region import EupmyeondongRegion, UserActivityRegion
+
+                from django.contrib.gis.geos import Point
+
+                try:
+                    # 읍면동 정보 조회
+                    eupmyeondong = EupmyeondongRegion.objects.get(
+                        code=data.eupmyeondong_code
+                    )
+
+                    # 사용자 활동지역 생성
+                    user_location = Point(data.longitude, data.latitude, srid=4326)
+                    UserActivityRegion.objects.create(
+                        user=user,
+                        activity_area=eupmyeondong,
+                        priority=1,  # 첫 번째 활동지역
+                        location=user_location,
+                    )
+                except Exception as location_error:
+                    # 위치 등록 실패는 회원가입 자체를 실패시키지 않음
+                    print(f"위치 등록 실패: {str(location_error)}")
+
+            # 위치 정보로 읍면동 코드 조회
+            if hasattr(data, "latitude") and hasattr(data, "longitude"):
+                from a_apis.service.region import SGISService
+
+                try:
+                    sgis = SGISService()
+                    region_info = sgis.get_region_info(data.latitude, data.longitude)
+                    eupmyeondong_code = region_info["adm_cd"]
+
+                    # 읍면동 정보 조회 또는 생성
+                    from a_apis.models.region import (
+                        EupmyeondongRegion,
+                        SidoRegion,
+                        SigunguRegion,
+                    )
+
+                    from django.contrib.gis.geos import Point
+
+                    current_version = (
+                        f"{datetime.now().year}-Q{(datetime.now().month-1)//3 + 1}"
+                    )
+                    user_location = Point(data.longitude, data.latitude, srid=4326)
+
+                    sido, _ = SidoRegion.objects.get_or_create(
+                        code=region_info["sido_cd"],
+                        version=current_version,
+                        defaults={"name": region_info["sido_nm"]},
+                    )
+
+                    sigungu, _ = SigunguRegion.objects.get_or_create(
+                        code=region_info["sgg_cd"],
+                        version=current_version,
+                        sido=sido,
+                        defaults={"name": region_info["sgg_nm"]},
+                    )
+
+                    eupmyeondong, _ = EupmyeondongRegion.objects.get_or_create(
+                        code=eupmyeondong_code,
+                        version=current_version,
+                        sigungu=sigungu,
+                        defaults={
+                            "name": region_info["adm_nm"],
+                            "center_coordinates": user_location,
+                        },
+                    )
+
+                    # 사용자 활동지역 생성
+                    from a_apis.models.region import UserActivityRegion
+
+                    UserActivityRegion.objects.create(
+                        user=user,
+                        activity_area=eupmyeondong,
+                        priority=1,
+                        location=user_location,
+                    )
+                except Exception as location_error:
+                    # 위치 등록 실패는 회원가입 자체를 실패시키지 않음
+                    print(f"위치 등록 실패: {str(location_error)}")
 
             # JWT 토큰 생성
             refresh = RefreshToken.for_user(user)
@@ -90,8 +185,6 @@ class UserService:
         """
         user = authenticate(request, username=data.email, password=data.password)
         if user:
-            # 이메일 인증 여부는 회원가입 시 이미 확인했으므로
-            # 별도 확인 로직 제거 (모든 가입된 사용자는 이미 인증됨)
             login(request, user)
             refresh = RefreshToken.for_user(user)
             return {
@@ -128,10 +221,12 @@ class UserService:
             user = request.auth
             if not user:
                 return {"success": False, "message": "인증되지 않은 사용자입니다."}
+
             from rest_framework_simplejwt.tokens import AccessToken
 
             access_token = AccessToken(user)
             user_id = access_token["user_id"]
+
             user = User.objects.get(id=user_id)
 
             return {

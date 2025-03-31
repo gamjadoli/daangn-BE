@@ -13,6 +13,9 @@ class SignupSchema(Schema):
     password: str
     nickname: str
     phone_number: str
+    latitude: float  # 추가
+    longitude: float  # 추가
+    eupmyeondong_code: str  # 추가 (읍면동 코드)
 
 
 class LoginSchema(Schema):

@@ -13,9 +13,8 @@ class SignupSchema(Schema):
     password: str
     nickname: str
     phone_number: str
-    latitude: float  # 추가
-    longitude: float  # 추가
-    eupmyeondong_code: str  # 추가 (읍면동 코드)
+    latitude: float
+    longitude: float
 
 
 class LoginSchema(Schema):
@@ -49,12 +48,28 @@ class UserResponseSchema(Schema):
 
 
 class BaseResponseSchema(Schema):
-    """기본 응답 스키마"""
+    """기본 응답 스키마
+
+    예시:
+    {
+        "success": true,
+        "message": "회원가입이 완료되었습니다.",
+        "data": {
+            "id": 1,
+            "email": "user@example.com",
+            "nickname": "사용자"
+        },
+        "tokens": {
+            "access": "eyJ0eXA...",
+            "refresh": "eyJ0eXA..."
+        }
+    }
+    """
 
     success: bool
     message: str
     data: Optional[Dict[str, Any]] = None
-    tokens: Optional[Dict[str, str]] = None
+    tokens: Optional[TokenSchema] = None
 
 
 # AuthResponseSchema와 ErrorResponseSchema를 BaseResponseSchema로 통일

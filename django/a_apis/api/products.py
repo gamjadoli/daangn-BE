@@ -1,8 +1,5 @@
 from a_apis.auth.bearer import AuthBearer
-from a_apis.schema.products import (
-    ProductCreateSchema,
-    ProductResponseSchema,
-)
+from a_apis.schema.products import ProductCreateSchema, ProductResponseSchema
 from a_apis.service.products import ProductService
 from ninja import File, Router
 from ninja.files import UploadedFile

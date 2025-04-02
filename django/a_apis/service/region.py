@@ -89,6 +89,51 @@ class SGISService:
             raise SGISAPIException(f"지역 정보 조회 실패: {str(e)}")
 
 
+class KakaoMapService:
+    """카카오맵 API 서비스 (개인 개발자용)"""
+
+    def __init__(self):
+        self.api_key = settings.KAKAO_API_KEY
+
+    def get_region_info(self, latitude: float, longitude: float) -> dict:
+        """좌표를 통한 행정구역 정보 조회"""
+        url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json"
+        headers = {"Authorization": f"KakaoAK {self.api_key}"}
+        params = {"x": longitude, "y": latitude}
+
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            data = response.json()
+
+            if response.status_code == 200 and data.get("documents"):
+                address = data["documents"][0]["address"]
+                # 지역코드 생성 로직 (임시)
+                sido_code = self._get_region_code(address["region_1depth_name"])
+                sigungu_code = self._get_region_code(address["region_2depth_name"])
+                adm_code = self._get_region_code(address["region_3depth_name"])
+
+                return {
+                    "sido_nm": address["region_1depth_name"],
+                    "sgg_nm": address["region_2depth_name"],
+                    "adm_nm": address["region_3depth_name"],
+                    "sido_cd": sido_code,
+                    "sgg_cd": sigungu_code,
+                    "adm_cd": adm_code,
+                }
+
+            raise Exception("주소 정보를 찾을 수 없습니다.")
+
+        except Exception as e:
+            raise Exception(f"카카오맵 API 호출 실패: {str(e)}")
+
+    def _get_region_code(self, region_name: str) -> str:
+        """지역명으로 임시 코드 생성 (실제 구현 시 DB 매핑 테이블 사용)"""
+        import hashlib
+
+        # 임시로 지역명의 해시값 앞 10자리를 코드로 사용
+        return hashlib.md5(region_name.encode()).hexdigest()[:10]
+
+
 class RegionService:
     """지역 서비스"""
 
@@ -104,27 +149,20 @@ class RegionService:
             sgis = SGISService()
             region_info = sgis.get_region_info(latitude, longitude)
 
-            current_version = (
-                f"{datetime.now().year}-Q{(datetime.now().month-1)//3 + 1}"
-            )
-
             # 행정구역 정보 조회 또는 생성
             sido, _ = SidoRegion.objects.get_or_create(
                 code=region_info["sido_cd"],
-                version=current_version,
                 defaults={"name": region_info["sido_nm"]},
             )
 
             sigungu, _ = SigunguRegion.objects.get_or_create(
                 code=region_info["sgg_cd"],
-                version=current_version,
                 sido=sido,
                 defaults={"name": region_info["sgg_nm"]},
             )
 
             activity_area, _ = EupmyeondongRegion.objects.get_or_create(
                 code=region_info["adm_cd"],
-                version=current_version,
                 sigungu=sigungu,
                 defaults={
                     "name": region_info["adm_nm"],

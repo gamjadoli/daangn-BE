@@ -11,6 +11,11 @@ class UserManager(BaseUserManager):
         if not email:
             raise ValueError("이메일은 필수 입력값입니다.")
         email = self.normalize_email(email)
+
+        # username 필드가 없으면 email 값을 username으로 사용
+        if "username" not in extra_fields:
+            extra_fields["username"] = email
+
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save()

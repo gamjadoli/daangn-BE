@@ -31,3 +31,26 @@ def get_user_regions(request):
     if not result["success"]:
         raise HttpError(400, result["message"])
     return result
+
+
+@router.post("/get-location-info", response=RegionResponseSchema)
+def get_location_info(request, data: LocationVerificationSchema):
+    """위도/경도를 통해 지역 정보 조회"""
+    from a_apis.service.region import SGISService
+
+    try:
+        sgis = SGISService()
+        region_info = sgis.get_region_info(data.latitude, data.longitude)
+
+        return {
+            "success": True,
+            "message": "지역 정보가 조회되었습니다.",
+            "data": {
+                "sido": region_info["sido_nm"],
+                "sigungu": region_info["sgg_nm"],
+                "eupmyeondong": region_info["adm_nm"],
+                "eupmyeondong_code": region_info["adm_cd"],
+            },
+        }
+    except Exception as e:
+        return {"success": False, "message": f"지역 정보 조회 실패: {str(e)}"}

@@ -1,4 +1,4 @@
-from a_apis.models.product import Product, ProductImage
+from a_apis.models.product import InterestProduct, Product, ProductImage
 from a_apis.models.region import (
     EupmyeondongRegion,
     SidoRegion,
@@ -181,3 +181,14 @@ class UserActivityRegionAdmin(GISModelAdmin):
                 "activity_area__sigungu__sido",
             )
         )
+
+
+@admin.register(InterestProduct)
+class InterestProductAdmin(admin.ModelAdmin):
+    list_display = ("user", "product", "created_at")
+    search_fields = ("user__email", "product__title")
+    list_filter = ("created_at",)
+    raw_id_fields = ("user", "product")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user", "product")

@@ -5,17 +5,23 @@ services:
     build:
       context: .
       dockerfile: django/Dockerfile
-    command: gunicorn a_core.wsgi:application --bind 0.0.0.0:8000
+    restart: always
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn a_core.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - ./django/:/app/
       - static_volume:/app/static
       - media_volume:/app/media
     env_file:
       - ./django/.env
-    networks:
-      - backend-network
     environment:
       - DJANGO_SETTINGS_MODULE=a_core.settings.product
+    networks:
+      - backend-network
+    depends_on:
+      - redis
     deploy:
       resources:
         limits:
@@ -27,18 +33,25 @@ services:
 
   nginx:
     image: nginx:1.21-alpine
+    restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./django/static:/app/static
-      - ./django/media:/app/media
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - static_volume:/app/static
       - media_volume:/app/media
     depends_on:
       - web
+    networks:
+      - backend-network
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
     networks:
       - backend-network
 
@@ -48,4 +61,4 @@ volumes:
 
 networks:
   backend-network:
-    driver: bridge 
+    driver: bridge

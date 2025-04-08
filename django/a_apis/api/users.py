@@ -26,19 +26,25 @@ def login(request, data: LoginSchema):
     return UserService.login_user(request, data)
 
 
-@public_router.post("/signup", response=AuthResponseSchema)
+@public_router.post(
+    "/signup", response={200: AuthResponseSchema, 400: ErrorResponseSchema}
+)
 def signup(request, data: SignupSchema):
     """
     회원가입 엔드포인트
 
     Args:
         request: HTTP 요청 객체
-        data: 회원가입 데이터 (SignupSchema)
+        data: 회원가입 데이터 (SignupSchema - 위치 정보 포함)
 
     Returns:
-        AuthResponseSchema: 회원가입 결과 및 토큰 정보
+        200: 성공 시 사용자 정보와 토큰이 포함된 응답
+        400: 실패 시 에러 메시지
     """
-    return UserService.signup(data)
+    result = UserService.signup(data)
+    if not result["success"]:
+        return 400, result
+    return 200, result
 
 
 @router.get("/me", response=AuthResponseSchema)

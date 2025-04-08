@@ -44,6 +44,10 @@ AUTH_KAKAO_CLIENT_SECRET = os.getenv("AUTH_KAKAO_CLIENT_SECRET")
 AUTH_NAVER_CLIENT_ID = os.getenv("AUTH_NAVER_CLIENT_ID")
 AUTH_NAVER_CLIENT_SECRET = os.getenv("AUTH_NAVER_CLIENT_SECRET")
 
+# SGIS API 설정
+SGIS_API_KEY = os.environ.get("SGIS_API_KEY", "")
+SGIS_SECRET_KEY = os.environ.get("SGIS_SECRET_KEY", "")
+
 
 # Application definition
 DEFAULT_APPS = [
@@ -65,8 +69,6 @@ THIRD_PARTY_APPS = [
     "django.contrib.sites",
     "allauth",
     "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.google",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
@@ -86,7 +88,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # allauth 미들웨어 추가
     "a_apis.middleware.ProcessPUTPatchMiddleware",  # PUT, PATCH 요청 처리 미들웨어
 ]
 
@@ -171,22 +173,53 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # 사용자 모델 설정
 AUTH_USER_MODEL = "a_user.User"
 
-# Allauth 설정
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_USERNAME_REQUIRED = False
+# Allauth 설정 업데이트
+ACCOUNT_LOGIN_METHODS = {"email"}  # ACCOUNT_AUTHENTICATION_METHOD 대체
 
-# 이메일 설정 (개발환경)
+ACCOUNT_RATE_LIMITS = {
+    # 로그인 시도 제한 설정
+    "login_failed": {
+        "TIMER": 300,  # 5분 (300초)
+        "LIMIT": 5,  # 5회 시도
+    }
+}
+
+# 기존 deprecated 설정들 제거
+# ACCOUNT_AUTHENTICATION_METHOD = "email"
+# ACCOUNT_LOGIN_ATTEMPTS_LIMIT = 5
+# ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300
+
+# 나머지 allauth 설정 유지
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_SESSION_REMEMBER = True
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 0.0208333  # 30분
+
+# 이메일 설정 수정
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # Gmail 주소
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")  # Gmail 앱 비밀번호
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # 발신자 이메일 주소
+EMAIL_HOST_PASSWORD = os.getenv(
+    "EMAIL_HOST_PASSWORD"
+)  # 발신자 이메일 앱 비밀번호 16자리
+
+# SSL 인증서 설정
+import certifi
+
+os.environ["SSL_CERT_FILE"] = certifi.where()
+
+# 이전 SSL 관련 설정 제거
+# EMAIL_USE_SSL = False
+# EMAIL_SSL_CERTFILE = None
+# EMAIL_SSL_KEYFILE = None
+# ssl._create_default_https_context = ssl._create_unverified_context
 
 # 사이트 설정
-SITE_ID = 1
+SITE_ID = 1  # 주석 해제
 
 # JWT 설정
 SIMPLE_JWT = {

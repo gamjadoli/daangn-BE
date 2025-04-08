@@ -1,22 +1,24 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ninja import Schema
 from pydantic import EmailStr, field_validator, model_validator
 
 
 class EmailVerificationRequestSchema(Schema):
-    email: str
+    email: EmailStr
 
 
 class SignupSchema(Schema):
-    username: str
-    password: Optional[str] = None
+    email: EmailStr
+    password: str
+    nickname: str
     phone_number: str
-    email: str
+    latitude: float
+    longitude: float
 
 
 class LoginSchema(Schema):
-    email: str
+    email: EmailStr
     password: str
 
 
@@ -26,21 +28,53 @@ class TokenSchema(Schema):
 
 
 class UserSchema(Schema):
-    email: str
+    email: EmailStr
+    nickname: str
+    phone_number: str
+    rating_score: float
+    is_activated: bool
+    is_email_verified: bool
+    profile_img_url: Optional[str] = None
 
 
 class UserResponseSchema(Schema):
-    email: str
-    username: str
+    email: EmailStr
+    nickname: str
     phone_number: str
-    is_active: bool
+    is_activated: bool
+    is_email_verified: bool
+    rating_score: float
+    profile_img_url: Optional[str] = None
 
 
-class AuthResponseSchema(Schema):
+class BaseResponseSchema(Schema):
+    """기본 응답 스키마
+
+    예시:
+    {
+        "success": true,
+        "message": "회원가입이 완료되었습니다.",
+        "data": {
+            "id": 1,
+            "email": "user@example.com",
+            "nickname": "사용자"
+        },
+        "tokens": {
+            "access": "eyJ0eXA...",
+            "refresh": "eyJ0eXA..."
+        }
+    }
+    """
+
     success: bool
     message: str
+    data: Optional[Dict[str, Any]] = None
     tokens: Optional[TokenSchema] = None
-    user: Optional[UserResponseSchema] = None
+
+
+# AuthResponseSchema와 ErrorResponseSchema를 BaseResponseSchema로 통일
+AuthResponseSchema = BaseResponseSchema
+ErrorResponseSchema = BaseResponseSchema
 
 
 class RefreshTokenSchema(Schema):
@@ -73,12 +107,7 @@ class LogoutSchema(Schema):
     refresh_token: str
 
 
-class ErrorResponseSchema(Schema):
-    success: bool
-    message: Optional[str] = None
-
-
 class UpdateProfileSchema(Schema):
-    username: Optional[str] = None
+    nickname: Optional[str] = None
     password: Optional[str] = None
     phone_number: Optional[str] = None

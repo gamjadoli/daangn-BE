@@ -44,6 +44,10 @@ AUTH_KAKAO_CLIENT_SECRET = os.getenv("AUTH_KAKAO_CLIENT_SECRET")
 AUTH_NAVER_CLIENT_ID = os.getenv("AUTH_NAVER_CLIENT_ID")
 AUTH_NAVER_CLIENT_SECRET = os.getenv("AUTH_NAVER_CLIENT_SECRET")
 
+# SGIS API 설정
+SGIS_API_KEY = os.environ.get("SGIS_API_KEY", "")
+SGIS_SECRET_KEY = os.environ.get("SGIS_SECRET_KEY", "")
+
 
 # Application definition
 DEFAULT_APPS = [

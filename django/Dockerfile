@@ -8,37 +8,25 @@ ENV PYTHONUNBUFFERED=1
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 시스템 의존성 설치
-RUN apt-get update && \
-    apt-get install -y build-essential libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
+# GDAL 관련 패키지와 PostgreSQL 개발 패키지 설치
+RUN apt-get update && apt-get install -y \
+    binutils libproj-dev gdal-bin python3-gdal \
+    build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Poetry 설치
-RUN pip install --upgrade pip
-RUN pip install poetry
-
-# pyproject.toml과 poetry.lock 파일 복사
-COPY pyproject.toml poetry.lock /app/
-
-# Poetry가 가상환경을 생성하지 않도록 설정
+# Poetry 설치 및 설정
+RUN pip install --upgrade pip && pip install poetry
 RUN poetry config virtualenvs.create false
 
-# Python 의존성 설치
+# 의존성 설치 (수정된 경로)
+COPY pyproject.toml poetry.lock* /app/
 RUN poetry install --no-interaction --no-ansi
 
-# Django 프로젝트 복사
-COPY django/ /app/
+# 소스 코드 복사
+COPY . /app/
 
-# Django 설정을 위한 환경 변수 설정
-ENV DJANGO_SETTINGS_MODULE=a_core.settings.product
-
-# 정적 파일을 위한 디렉토리 생성
-RUN mkdir -p /app/static
-
-# 마이그레이션 실행 및 정적 파일 수집
-RUN python manage.py makemigrations --noinput --settings=a_core.settings.product && \
-    python manage.py migrate --noinput --settings=a_core.settings.product && \
-    python manage.py collectstatic --noinput --settings=a_core.settings.product
+# 정적 파일 디렉토리 생성
+RUN mkdir -p /app/static /app/media
 
 # 8000번 포트 노출
 EXPOSE 8000

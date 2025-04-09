@@ -3,25 +3,25 @@ from .base import *
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    "myapp.com",
-    "www.myapp.com",
-    "api.myapp.com",
+    "dangma.store",
+    "www.dangma.store",
+    "api.dangma.store",
     "localhost",
     "127.0.0.1",
-    "52.78.37.115",  # EC2 IP
+    "13.125.219.86",  # EC2 IP
 ]
 CORS_ALLOWED_ORIGINS = [
-    "https://myapp.com",  # 프론트 배포 도메인
-    "https://www.myapp.com",  # 프론트 배포 도메인
-    "https://api.myapp.com",  # 백엔드 배포 도메인
+    "https://dangma.store",
+    "https://www.dangma.store",
+    "https://api.dangma.store",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
 ]
 CSRF_TRUSTED_ORIGINS = [
-    "https://myapp.com",
-    "https://www.myapp.com",
-    "https://api.myapp.com",
+    "https://dangma.store",
+    "https://www.dangma.store",
+    "https://api.dangma.store",
     "http://localhost:5173",  # Vite dev server
     "http://localhost:3000",  # React / Next.js dev server
     "http://localhost:8000",  # Django dev server

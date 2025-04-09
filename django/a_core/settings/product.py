@@ -65,7 +65,7 @@ CORS_ALLOW_HEADERS = [
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",  # PostgreSQL이 아닌 PostGIS로 변경
         "NAME": os.getenv("AWS_RDS_NAME"),
         "USER": os.getenv("AWS_RDS_USER"),
         "PASSWORD": os.getenv("AWS_RDS_PASSWORD"),

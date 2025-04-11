@@ -23,6 +23,8 @@ class LoginSchema(Schema):
 
 
 class TokenSchema(Schema):
+    """토큰 스키마"""
+
     access: str
     refresh: str
 
@@ -48,33 +50,24 @@ class UserResponseSchema(Schema):
 
 
 class BaseResponseSchema(Schema):
-    """기본 응답 스키마
-
-    예시:
-    {
-        "success": true,
-        "message": "회원가입이 완료되었습니다.",
-        "data": {
-            "id": 1,
-            "email": "user@example.com",
-            "nickname": "사용자"
-        },
-        "tokens": {
-            "access": "eyJ0eXA...",
-            "refresh": "eyJ0eXA..."
-        }
-    }
-    """
+    """기본 응답 스키마"""
 
     success: bool
     message: str
     data: Optional[Dict[str, Any]] = None
-    tokens: Optional[TokenSchema] = None
 
 
-# AuthResponseSchema와 ErrorResponseSchema를 BaseResponseSchema로 통일
-AuthResponseSchema = BaseResponseSchema
-ErrorResponseSchema = BaseResponseSchema
+class AuthResponseSchema(BaseResponseSchema):
+    """인증 응답 스키마 (로그인/회원가입)"""
+
+    tokens: TokenSchema
+
+
+class ErrorResponseSchema(BaseResponseSchema):
+    """단순 응답 스키마 (이메일 인증, 오류 등)"""
+
+    # BaseResponseSchema 필드만 사용 (tokens 없음)
+    pass
 
 
 class RefreshTokenSchema(Schema):

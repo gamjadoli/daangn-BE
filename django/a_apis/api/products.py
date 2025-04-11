@@ -38,17 +38,20 @@ def get_my_products(
 
 
 # 나머지 라우트 등록
-@router.post("/", response=ProductResponseSchema)
+@router.post("/create", response=ProductResponseSchema)
 @transaction.atomic
 def create_product(
     request,
     data: ProductCreateSchema,
     images: List[UploadedFile] = File(...),  # 필수
 ):
-    """상품 등록 API
+    """
+    상품 등록 API
 
-    이미지는 최소 1장, 최대 10장까지 등록 가능하며,
-    판매하기 선택 시 가격 입력이 필수입니다.
+    필수 항목: 상품 정보(title, trade_type 등), 이미지(최소 1장)
+
+    성공: 생성된 상품 정보 반환
+    실패: 유효성 검증 오류 메시지
     """
     # 이미지 유효성 검증
     if not images:
@@ -80,9 +83,26 @@ def list_products(
     page: int = 1,
     page_size: int = 20,
 ):
-    """상품 목록 조회 API
+    """
+    상품 목록 조회 API
 
-    검색, 상태, 거래 타입 필터링을 지원합니다.
+    필터링 옵션:
+    - search: 검색어 (상품명, 설명 검색)
+    - status: 상품 상태 필터 (new: 판매중, reserved: 예약중, soldout: 판매완료)
+    - trade_type: 거래 방식 필터 (sale: 판매하기, share: 나눔하기)
+
+    페이징:
+    - page: 페이지 번호 (기본값: 1)
+    - page_size: 페이지당 상품 수 (기본값: 20)
+
+    예시 엔드포인트:
+    - 기본 조회: /api/products/
+    - 검색: /api/products/?search=자전거
+    - 필터링: /api/products/?status=new&trade_type=sale
+    - 페이징: /api/products/?page=2&page_size=10
+    - 복합 쿼리: /api/products/?search=자전거&status=new&page=2
+
+    성공: 상품 목록과 페이징 정보 반환
     """
     filter_params = {
         "search": search,
@@ -99,7 +119,15 @@ def list_products(
 
 @router.get("/{product_id}", response=ProductResponseSchema)
 def get_product(request, product_id: int):
-    """상품 상세 조회 API"""
+    """
+    상품 상세 조회 API
+
+    경로 파라미터:
+    - product_id: 조회할 상품 ID
+
+    성공: 상품 상세 정보와 판매자 정보 반환
+    실패: 존재하지 않는 상품 오류 메시지
+    """
     return ProductService.get_product(product_id=product_id, user_id=request.user.id)
 
 
@@ -157,7 +185,7 @@ def update_product_status(request, product_id: int, data: ProductStatusUpdateSch
 def refresh_product(request, product_id: int):
     """상품 끌어올리기 API
 
-    상품을 끌어올려 상품 목록에서 상단에 노출되도록 합니다.
+    상품을 끌어올려 상품 목록에서 상단에 노출되게 합니다.
     하루에 최대 3회까지 가능합니다.
     """
     # 상품 소유자 확인
@@ -183,7 +211,18 @@ def delete_product(request, product_id: int):
 
 @router.post("/{product_id}/interest", response=ProductResponseSchema)
 def toggle_interest(request, product_id: int):
-    """상품 관심 등록/해제 API"""
+    """
+    상품 관심 등록/해제 API
+
+    경로 파라미터:
+    - product_id: 관심 등록/해제할 상품 ID
+
+    응답:
+    - 관심 등록 시: "관심 상품으로 등록되었습니다."
+    - 관심 해제 시: "관심 상품에서 해제되었습니다."
+
+    인증 필수: Bearer 토큰 헤더 필요
+    """
     return ProductService.toggle_interest_product(
         product_id=product_id, user_id=request.user.id
     )

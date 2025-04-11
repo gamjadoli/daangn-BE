@@ -21,16 +21,32 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.AWS_SSH_PORT }}
         script: |
+            # 프로젝트 디렉토리로 이동
             cd ~/${{ github.event.repository.name }}
+            
+            # 작업 중인 변경사항 있으면 임시 저장
             git stash
+            
+            # 메인 브랜치로 전환하고 최신 코드 가져오기
             git switch main
             git pull origin main
-            docker stop $(docker ps -aq) || true
-            docker rm $(docker ps -aq) || true
-            docker rmi $(docker images -q) || true
-            docker rmi -f $(docker images -q) || true
-            yes | docker system prune -a || true
-            yes | docker volume prune || true
-            yes | docker builder prune || true
-            docker volume rm $(docker volume ls -q) || true
-            docker-compose -f docker-compose.yml up --build -d || true
+            
+            # 기존 서비스 상태 백업 (선택적)
+            docker-compose ps > service_status_backup.txt
+            
+            # 프로젝트 관련 컨테이너만 중지 후 제거 (다른 프로젝트에 영향 없음)
+            docker-compose down
+            
+            # 사용하지 않는 프로젝트 관련 이미지만 제거
+            docker-compose down --rmi local
+            
+            # 새 이미지 빌드 및 서비스 시작
+            docker-compose -f docker-compose.yml build
+            docker-compose -f docker-compose.yml up -d
+            
+            # 사용하지 않는 리소스 정리 (위험 요소 줄임)
+            docker image prune -a --filter "until=24h" --force
+            
+            # 배포 완료 로그
+            echo "Deployment completed at $(date)"
+            docker-compose ps

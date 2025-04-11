@@ -12,12 +12,12 @@ jobs:
   migration-check:
     runs-on: ubuntu-latest
 
-    # env:
-    #   DEV_AWS_RDS_NAME: ${{ secrets.DEV_AWS_RDS_NAME }}
-    #   DEV_AWS_RDS_USER: ${{ secrets.DEV_AWS_RDS_USER }}
-    #   DEV_AWS_RDS_PASSWORD: ${{ secrets.DEV_AWS_RDS_PASSWORD }}
-    #   DEV_AWS_RDS_HOST: ${{ secrets.DEV_AWS_RDS_HOST }}
-    #   DEV_AWS_RDS_PORT: ${{ secrets.DEV_AWS_RDS_PORT }}
+    env:
+      DEV_AWS_RDS_NAME: ${{ secrets.DEV_AWS_RDS_NAME }}
+      DEV_AWS_RDS_USER: ${{ secrets.DEV_AWS_RDS_USER }}
+      DEV_AWS_RDS_PASSWORD: ${{ secrets.DEV_AWS_RDS_PASSWORD }}
+      DEV_AWS_RDS_HOST: ${{ secrets.DEV_AWS_RDS_HOST }}
+      DEV_AWS_RDS_PORT: ${{ secrets.DEV_AWS_RDS_PORT }}
 
     steps:
       - name: Checkout repository

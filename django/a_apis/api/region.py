@@ -13,7 +13,15 @@ router = Router(auth=AuthBearer())
 
 @router.post("/verify-location", response=RegionResponseSchema)
 def verify_location(request, data: LocationVerificationSchema):
-    """현재 위치 기반 활동지역 인증"""
+    """
+    활동지역 인증 API
+
+    인증 필수: Bearer 토큰 헤더 필요
+    필수 항목: latitude(위도), longitude(경도)
+
+    성공: 인증된 활동지역 정보 반환
+    실패: 지원되지 않는 지역 또는 위치 정보 오류 메시지
+    """
     result = RegionService.verify_user_location(
         user_id=request.user.id, latitude=data.latitude, longitude=data.longitude
     )
@@ -25,7 +33,14 @@ def verify_location(request, data: LocationVerificationSchema):
 
 @router.get("/regions", response=RegionListResponseSchema)
 def get_user_regions(request):
-    """사용자 활동지역 목록 조회"""
+    """
+    활동지역 목록 조회 API
+
+    인증 필수: Bearer 토큰 헤더 필요
+
+    성공: 사용자의 인증된 활동지역 목록 반환
+    실패: 조회 실패 메시지
+    """
     result = RegionService.get_user_regions(request.user.id)
 
     if not result["success"]:
@@ -35,7 +50,15 @@ def get_user_regions(request):
 
 @router.post("/get-location-info", response=RegionResponseSchema)
 def get_location_info(request, data: LocationVerificationSchema):
-    """위도/경도를 통해 지역 정보 조회"""
+    """
+    위치 정보 조회 API
+
+    인증 필수: Bearer 토큰 헤더 필요
+    필수 항목: latitude(위도), longitude(경도)
+
+    성공: 해당 좌표의 시/도, 시/군/구, 읍/면/동 정보 반환
+    실패: 위치 정보 조회 실패 메시지
+    """
     from a_apis.service.region import SGISService
 
     try:

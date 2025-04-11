@@ -14,14 +14,12 @@ public_router = Router()
 @public_router.post("/login", response=AuthResponseSchema)
 def login(request, data: LoginSchema):
     """
-    로그인 엔드포인트
+    로그인 API
 
-    Args:
-        request: HTTP 요청 객체
-        data: 로그인 데이터 (LoginSchema)
+    필수 항목: email, password
 
-    Returns:
-        AuthResponseSchema: 로그인 결과 및 토큰 정보
+    성공: 사용자 정보와 인증 토큰 반환
+    실패: 이메일/비밀번호 오류 메시지
     """
     return UserService.login_user(request, data)
 
@@ -31,15 +29,12 @@ def login(request, data: LoginSchema):
 )
 def signup(request, data: SignupSchema):
     """
-    회원가입 엔드포인트
+    회원가입 API
 
-    Args:
-        request: HTTP 요청 객체
-        data: 회원가입 데이터 (SignupSchema - 위치 정보 포함)
+    필수 항목: email, password, name, latitude, longitude
 
-    Returns:
-        200: 성공 시 사용자 정보와 토큰이 포함된 응답
-        400: 실패 시 에러 메시지
+    성공: 사용자 정보와 인증 토큰 반환
+    실패: 이메일 중복, 좌표 오류 등의 메시지
     """
     result = UserService.signup(data)
     if not result["success"]:
@@ -50,13 +45,12 @@ def signup(request, data: SignupSchema):
 @router.get("/me", response=AuthResponseSchema)
 def get_user(request):
     """
-    사용자 정보 조회 엔드포인트
+    내 정보 조회 API
 
-    Args:
-        request: HTTP 요청 객체
+    인증 필수: Bearer 토큰 헤더 필요
 
-    Returns:
-        AuthResponseSchema: 사용자 정보 및 토큰 정보
+    성공: 현재 로그인한 사용자 정보 반환
+    실패: 권한 오류 메시지
     """
     return UserService.get_user(request)
 
@@ -64,14 +58,12 @@ def get_user(request):
 @public_router.post("/refresh", response=TokenResponseSchema)
 def refresh_token(request, data: RefreshTokenSchema):
     """
-    토큰 갱신 엔드포인트
+    토큰 갱신 API
 
-    Args:
-        request: HTTP 요청 객체
-        data: 토큰 데이터 (RefreshTokenSchema)
+    필수 항목: refresh (리프레시 토큰)
 
-    Returns:
-        TokenResponseSchema: 토큰 정보
+    성공: 새로운 액세스/리프레시 토큰 반환
+    실패: 토큰 만료 또는 유효하지 않은 토큰 메시지
     """
     return UserService.refresh_token(data.refresh)
 
@@ -79,14 +71,12 @@ def refresh_token(request, data: RefreshTokenSchema):
 @public_router.post("/request-email-verification", response=ErrorResponseSchema)
 def request_email_verification(request, data: EmailVerificationRequestSchema):
     """
-    이메일 인증 요청 엔드포인트
+    이메일 인증 요청 API
 
-    Args:
-        request: HTTP 요청 객체
-        data: 이메일 인증 요청 데이터 (EmailVerificationRequestSchema)
+    필수 항목: email
 
-    Returns:
-        dict: 이메일 인증 요청 결과
+    성공: 인증 메일 발송 완료 메시지
+    실패: 이메일 주소 오류 메시지
     """
     return EmailService.send_verification_email(data.email)
 
@@ -98,18 +88,15 @@ def request_email_verification(request, data: EmailVerificationRequestSchema):
         400: ErrorResponseSchema,
         500: ErrorResponseSchema,
     },
-    # parser=CommonParser(),
 )
 def verify_email(request, data: EmailVerificationSchema):
     """
-    이메일 인증번호 확인 엔드포인트
+    이메일 인증 확인 API
 
-    Args:
-        request: HTTP 요청 객체
-        data: 이메일과 인증번호 데이터
+    필수 항목: email, code(인증번호)
 
-    Returns:
-        dict: 이메일 인증 확인 결과
+    성공: 인증 완료 메시지
+    실패: 유효하지 않은 인증번호 또는 처리 오류 메시지
     """
     try:
         return EmailService.verify_email(data.email, data.code)
@@ -129,7 +116,12 @@ def verify_email(request, data: EmailVerificationSchema):
 @router.delete("/withdraw", response=ErrorResponseSchema)
 def withdraw(request):
     """
-    회원 탈퇴 엔드포인트
+    회원 탈퇴 API
+
+    인증 필수: Bearer 토큰 헤더 필요
+
+    성공: 탈퇴 완료 메시지
+    실패: 권한 오류 메시지
     """
     return UserService.withdraw_user(request)
 
@@ -137,11 +129,12 @@ def withdraw(request):
 @public_router.post("/logout", response=ErrorResponseSchema)
 def logout(request, data: LogoutSchema):
     """
-    로그아웃 엔드포인트 (리프래쉬토큰만 받아서 블랙리스트에 추가)
-    args:
-        data: 로그아웃 데이터 (LogoutSchema)
-    returns:
-        dict: 로그아웃 결과
+    로그아웃 API
+
+    필수 항목: refresh (리프레시 토큰)
+
+    성공: 로그아웃 완료 메시지
+    실패: 유효하지 않은 토큰 메시지
     """
     return UserService.logout_user(data)
 
@@ -149,13 +142,12 @@ def logout(request, data: LogoutSchema):
 @router.put("/update-profile", response=ErrorResponseSchema)
 def update_profile(request, data: UpdateProfileSchema):
     """
-    회원 정보 수정 엔드포인트
+    회원정보 수정 API
 
-    Args:
-        request: HTTP 요청 객체
-        data: 회원 정보 수정 데이터 (UpdateProfileSchema)
+    인증 필수: Bearer 토큰 헤더 필요
+    필수 항목: 변경할 항목(name, phone 등)
 
-    Returns:
-        dict: 회원 정보 수정 결과
+    성공: 정보 수정 완료 메시지
+    실패: 유효성 검증 오류 메시지
     """
     return UserService.update_user_profile(request, data)

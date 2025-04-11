@@ -22,8 +22,12 @@ CORS_ALLOWED_ORIGINS = [
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",  # PostGIS 엔진 사용
+        "NAME": os.getenv("DEV_DB_NAME"),
+        "USER": os.getenv("DEV_DB_USER"),  # 기본 PostgreSQL 유저네임
+        "PASSWORD": os.getenv("DEV_DB_PASSWORD"),  # PostgreSQL 설치시 지정한 비밀번호
+        "HOST": os.getenv("DEV_DB_HOST"),
+        "PORT": os.getenv("DEV_DB_PORT"),
     }
 }
 

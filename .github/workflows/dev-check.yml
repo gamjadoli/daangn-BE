@@ -77,10 +77,24 @@ jobs:
       - name: Check migrations
         run: |
           cd django
+          # 디버깅을 위한 환경 변수 확인 (민감 정보는 가릴 것)
+          echo "DEV_AWS_RDS_HOST value is set: $([[ -n "${DEV_AWS_RDS_HOST}" ]] && echo "yes" || echo "no")"
+          
           # 직접 환경 변수를 사용하여 기존 설정 파일(dev-aws)로 실행
           poetry run python manage.py makemigrations --settings=a_core.settings.dev-aws
           poetry run python manage.py migrate --settings=a_core.settings.dev-aws
-    
+        env:
+          # 명시적으로 환경 변수 전달
+          DEV_AWS_RDS_NAME: ${{ secrets.DEV_AWS_RDS_NAME }}
+          DEV_AWS_RDS_USER: ${{ secrets.DEV_AWS_RDS_USER }}
+          DEV_AWS_RDS_PASSWORD: ${{ secrets.DEV_AWS_RDS_PASSWORD }}
+          DEV_AWS_RDS_HOST: ${{ secrets.DEV_AWS_RDS_HOST }}
+          DEV_AWS_RDS_PORT: ${{ secrets.DEV_AWS_RDS_PORT }}
+          # AWS 관련 더미 값 (필요시)
+          AWS_S3_ACCESS_KEY_ID: dummy-key
+          AWS_S3_SECRET_ACCESS_KEY: dummy-secret
+          AWS_S3_STORAGE_BUCKET_NAME: dummy-bucket
+
       - name: Check runserver
         run: |
           cd django

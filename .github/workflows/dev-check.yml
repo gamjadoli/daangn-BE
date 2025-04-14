@@ -12,13 +12,6 @@ jobs:
   migration-check:
     runs-on: ubuntu-latest
 
-    env:
-      DEV_AWS_RDS_NAME: ${{ secrets.DEV_AWS_RDS_NAME }}
-      DEV_AWS_RDS_USER: ${{ secrets.DEV_AWS_RDS_USER }}
-      DEV_AWS_RDS_PASSWORD: ${{ secrets.DEV_AWS_RDS_PASSWORD }}
-      DEV_AWS_RDS_HOST: ${{ secrets.DEV_AWS_RDS_HOST }}
-      DEV_AWS_RDS_PORT: ${{ secrets.DEV_AWS_RDS_PORT }}
-
     services:
       postgres:
         image: postgis/postgis:15-3.3
@@ -77,20 +70,22 @@ jobs:
       - name: Check migrations
         run: |
           cd django
-          # 디버깅을 위한 환경 변수 확인 (민감 정보는 가릴 것)
-          echo "DEV_AWS_RDS_HOST value is set: $([[ -n "${DEV_AWS_RDS_HOST}" ]] && echo "yes" || echo "no")"
           
-          # 직접 환경 변수를 사용하여 기존 설정 파일(dev-aws)로 실행
+          # 로컬 PostgreSQL 연결 확인
+          PGPASSWORD=postgres psql -h localhost -U postgres -d dangma_test -c "SELECT 1" || echo "PostgreSQL 연결 실패"
+          
+          # 명시적 환경 변수 설정 (로컬 테스트 DB 전용)
+          export DEV_AWS_RDS_NAME=dangma_test
+          export DEV_AWS_RDS_USER=postgres
+          export DEV_AWS_RDS_PASSWORD=postgres
+          export DEV_AWS_RDS_HOST=localhost
+          export DEV_AWS_RDS_PORT=5432
+          
+          # 마이그레이션 실행
           poetry run python manage.py makemigrations --settings=a_core.settings.dev-aws
           poetry run python manage.py migrate --settings=a_core.settings.dev-aws
         env:
-          # 명시적으로 환경 변수 전달
-          DEV_AWS_RDS_NAME: ${{ secrets.DEV_AWS_RDS_NAME }}
-          DEV_AWS_RDS_USER: ${{ secrets.DEV_AWS_RDS_USER }}
-          DEV_AWS_RDS_PASSWORD: ${{ secrets.DEV_AWS_RDS_PASSWORD }}
-          DEV_AWS_RDS_HOST: ${{ secrets.DEV_AWS_RDS_HOST }}
-          DEV_AWS_RDS_PORT: ${{ secrets.DEV_AWS_RDS_PORT }}
-          # AWS 관련 더미 값 (필요시)
+          # 테스트용 더미 값 추가 (필요시)
           AWS_S3_ACCESS_KEY_ID: dummy-key
           AWS_S3_SECRET_ACCESS_KEY: dummy-secret
           AWS_S3_STORAGE_BUCKET_NAME: dummy-bucket

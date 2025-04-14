@@ -1,4 +1,3 @@
-from a_apis.models.files import File
 from a_common.models import CommonModel
 
 from django.contrib.gis.db import models  # PostGIS 필드 사용
@@ -67,7 +66,7 @@ class ProductImage(CommonModel):
         Product, on_delete=models.CASCADE, related_name="images", verbose_name="상품"
     )
     file = models.ForeignKey(
-        File,
+        "a_apis.File",  # 직접 임포트 대신 문자열 참조로 변경
         on_delete=models.CASCADE,
         related_name="product_images",
         verbose_name="이미지 파일",

@@ -14,12 +14,12 @@ CORS_ALLOWED_ORIGINS = [
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DEV_AWS_RDS_NAME"),
-        "USER": os.getenv("DEV_AWS_RDS_USER"),
-        "PASSWORD": os.getenv("DEV_AWS_RDS_PASSWORD"),
-        "HOST": os.getenv("DEV_AWS_RDS_HOST"),
-        "PORT": os.getenv("DEV_AWS_RDS_PORT"),
+        "ENGINE": "django.contrib.gis.db.backends.postgis",  # PostgreSQL이 아닌 PostGIS로 변경
+        "NAME": os.getenv("AWS_RDS_NAME"),
+        "USER": os.getenv("AWS_RDS_USER"),
+        "PASSWORD": os.getenv("AWS_RDS_PASSWORD"),
+        "HOST": os.getenv("AWS_RDS_HOST"),
+        "PORT": os.getenv("AWS_RDS_PORT"),
     }
 }
 

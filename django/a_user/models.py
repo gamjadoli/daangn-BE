@@ -1,4 +1,3 @@
-from a_apis.models.files import File
 from a_common.models import CommonModel
 
 from django.contrib.auth.base_user import BaseUserManager

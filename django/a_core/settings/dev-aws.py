@@ -12,16 +12,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
 ]
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv("DEV_AWS_RDS_NAME"),
-#         "USER": os.getenv("DEV_AWS_RDS_USER"),
-#         "PASSWORD": os.getenv("DEV_AWS_RDS_PASSWORD"),
-#         "HOST": os.getenv("DEV_AWS_RDS_HOST"),
-#         "PORT": os.getenv("DEV_AWS_RDS_PORT"),
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",  # PostgreSQL이 아닌 PostGIS로 변경
+        "NAME": os.getenv("DEV_AWS_RDS_NAME"),
+        "USER": os.getenv("DEV_AWS_RDS_USER"),
+        "PASSWORD": os.getenv("DEV_AWS_RDS_PASSWORD"),
+        "HOST": os.getenv("DEV_AWS_RDS_HOST"),
+        "PORT": os.getenv("DEV_AWS_RDS_PORT"),
+    }
+}
 
 
 # SSL 설정 비활성화
@@ -30,12 +30,6 @@ SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SECURE_PROXY_SSL_HEADER = None  # SSL 프록시 헤더 비활성화
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]

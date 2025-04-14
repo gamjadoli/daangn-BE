@@ -38,7 +38,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Cache apt packages
+        uses: actions/cache@v3
+        id: apt-cache
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-gdal-${{ hashFiles('.github/workflows/dev-check.yml') }}
+      
       - name: Install GDAL and spatial dependencies
+        if: steps.apt-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev python3-gdal binutils libproj-dev libgeos-dev
@@ -72,18 +80,7 @@ jobs:
           # 직접 환경 변수를 사용하여 기존 설정 파일(dev-aws)로 실행
           poetry run python manage.py makemigrations --settings=a_core.settings.dev-aws
           poetry run python manage.py migrate --settings=a_core.settings.dev-aws
-        env:
-          # 로컬 테스트 DB 정보 직접 지정
-          DEV_DB_NAME: dangma_test
-          DEV_DB_USER: postgres
-          DEV_DB_PASSWORD: postgres
-          DEV_DB_HOST: localhost
-          DEV_DB_PORT: 5432
-          # AWS 관련 더미 값 설정
-          AWS_S3_ACCESS_KEY_ID: dummy-key
-          AWS_S3_SECRET_ACCESS_KEY: dummy-secret
-          AWS_S3_STORAGE_BUCKET_NAME: dummy-bucket
-
+    
       - name: Check runserver
         run: |
           cd django

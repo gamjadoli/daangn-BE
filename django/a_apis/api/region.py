@@ -141,16 +141,16 @@ def get_nearby_regions(request, data: LocationVerificationSchema):
     """
     근처 동네 목록 조회 API (회원가입용, 인증 없음)
 
-    위치 기준 주변 동네 조회. 반경 10km 내 동네를 거리순으로 최대 10개 반환.
+    위치 기준 주변 동네 조회. 반경 5km 내 동네를 거리순으로 최대 5개 반환.
 
     입력값:
     - latitude: 위도 좌표
     - longitude: 경도 좌표
 
     응답:
-    - 성공: 거리순 정렬된 동네 목록
+    - 성공: 거리순 정렬된 동네 목록 (최대 5개)
     - 실패: 오류 메시지
     """
     return RegionService.get_nearby_regions(
-        latitude=data.latitude, longitude=data.longitude
+        latitude=data.latitude, longitude=data.longitude, radius_km=5, limit=5
     )

@@ -15,3 +15,8 @@ class File(CommonModel):
 
     def __str__(self):
         return self.file.name
+
+    @property
+    def url(self):
+        """파일의 URL을 반환하는 속성"""
+        return self.file.url if self.file else None

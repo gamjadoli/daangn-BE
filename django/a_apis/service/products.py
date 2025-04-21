@@ -90,7 +90,7 @@ class ProductService:
             start_idx = (page - 1) * page_size
             end_idx = start_idx + page_size
 
-            # 첫 번째 이미지 URL 서브쿼리 (최적화)
+            # 첫 번째 이미지 ID 서브쿼리로 변경 (URL 대신 ID만 가져옴)
             first_image = (
                 ProductImage.objects.filter(product=OuterRef("pk"))
                 .select_related("file")
@@ -105,15 +105,30 @@ class ProductService:
                 .values("count")
             )
 
-            # 쿼리 실행 및 페이지네이션
+            # 쿼리 실행 및 페이지네이션 - URL 대신 file_id를 가져옴
             products = queryset.annotate(
-                image_url=Subquery(first_image.values("file__url")[:1]),
+                file_id=Subquery(first_image.values("file__id")[:1]),
                 interest_count=Subquery(interest_count[:1]),
             )[start_idx:end_idx]
 
-            # 결과 변환
+            # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
             for product in products:
+                # 이미지 URL 별도 처리
+                image_url = None
+                if product.file_id:
+                    try:
+                        product_image = (
+                            ProductImage.objects.select_related("file")
+                            .filter(product_id=product.id)
+                            .first()
+                        )
+                        if product_image and product_image.file:
+                            image_url = product_image.file.url
+                    except Exception:
+                        # 이미지 URL 조회 실패 시 None으로 처리
+                        pass
+
                 product_list.append(
                     {
                         "id": product.id,
@@ -127,7 +142,7 @@ class ProductService:
                             if product.refresh_at
                             else None
                         ),
-                        "image_url": product.image_url,
+                        "image_url": image_url,
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,
@@ -383,7 +398,7 @@ class ProductService:
             start_idx = (page - 1) * page_size
             end_idx = start_idx + page_size
 
-            # 첫 번째 이미지 URL 서브쿼리
+            # 첫 번째 이미지 ID 서브쿼리로 변경 (URL 대신 ID만 가져옴)
             first_image = (
                 ProductImage.objects.filter(product=OuterRef("pk"))
                 .select_related("file")
@@ -398,15 +413,30 @@ class ProductService:
                 .values("count")
             )
 
-            # 쿼리 실행 및 페이지네이션
+            # 쿼리 실행 및 페이지네이션 - URL 대신 file_id를 가져옴
             products = queryset.annotate(
-                image_url=Subquery(first_image.values("file__url")[:1]),
+                file_id=Subquery(first_image.values("file__id")[:1]),
                 interest_count=Subquery(interest_count[:1]),
             )[start_idx:end_idx]
 
-            # 결과 변환
+            # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
             for product in products:
+                # 이미지 URL 별도 처리
+                image_url = None
+                if product.file_id:
+                    try:
+                        product_image = (
+                            ProductImage.objects.select_related("file")
+                            .filter(product_id=product.id)
+                            .first()
+                        )
+                        if product_image and product_image.file:
+                            image_url = product_image.file.url
+                    except Exception:
+                        # 이미지 URL 조회 실패 시 None으로 처리
+                        pass
+
                 product_list.append(
                     {
                         "id": product.id,
@@ -420,7 +450,7 @@ class ProductService:
                             if product.refresh_at
                             else None
                         ),
-                        "image_url": product.image_url,
+                        "image_url": image_url,
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,
@@ -461,7 +491,7 @@ class ProductService:
             start_idx = (page - 1) * page_size
             end_idx = start_idx + page_size
 
-            # 첫 번째 이미지 URL 서브쿼리
+            # 첫 번째 이미지 ID 서브쿼리로 변경 (URL 대신 ID만 가져옴)
             first_image = (
                 ProductImage.objects.filter(product=OuterRef("pk"))
                 .select_related("file")
@@ -476,15 +506,31 @@ class ProductService:
                 .values("count")
             )
 
-            # 쿼리 실행 및 페이지네이션
+            # 쿼리 실행 및 페이지네이션 - file_id를 가져옴
             products = queryset.annotate(
-                image_url=Subquery(first_image.values("file__url")[:1]),
+                file_id=Subquery(first_image.values("file__id")[:1]),
                 interest_count=Subquery(interest_count[:1]),
             )[start_idx:end_idx]
 
-            # 결과 변환
+            # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
             for product in products:
+                # 이미지 URL 별도 처리
+                image_url = None
+                if product.file_id:
+                    # ProductImage를 통해 File 객체를 가져온 후 url 속성 접근
+                    try:
+                        product_image = (
+                            ProductImage.objects.select_related("file")
+                            .filter(product_id=product.id)
+                            .first()
+                        )
+                        if product_image and product_image.file:
+                            image_url = product_image.file.url
+                    except Exception:
+                        # 이미지 URL 조회 실패 시 None으로 처리
+                        pass
+
                 product_list.append(
                     {
                         "id": product.id,
@@ -498,7 +544,7 @@ class ProductService:
                             if product.refresh_at
                             else None
                         ),
-                        "image_url": product.image_url,
+                        "image_url": image_url,
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,

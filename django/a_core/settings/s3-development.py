@@ -6,6 +6,13 @@ INSTALLED_APPS += [
     "django_extensions",
 ]
 
+# 로컬 개발 환경에서는 인메모리 채널 레이어 사용
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
+
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "api.myapp.com"]
 SERVER_BASE_URL = "http://localhost:3000"
 

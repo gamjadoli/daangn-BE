@@ -32,4 +32,5 @@ RUN mkdir -p /app/static /app/media
 EXPOSE 8000
 
 # 애플리케이션 실행을 위한 기본 명령어 정의
-CMD ["gunicorn", "a_core.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Gunicorn 대신 Daphne를 사용하여 WebSocket 지원
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "a_core.asgi:application"]

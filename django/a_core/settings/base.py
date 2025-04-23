@@ -56,6 +56,10 @@ DEFAULT_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+]
+
+# staticfiles 앱을 DEFAULT_APPS에서 제거하고 나중에 추가
+STATIC_APPS = [
     "django.contrib.staticfiles",
 ]
 
@@ -75,9 +79,11 @@ THIRD_PARTY_APPS = [
     "storages",
     "django_cleanup.apps.CleanupConfig",
     "channels",
+    "daphne",
 ]
 
-INSTALLED_APPS = DEFAULT_APPS + CUSTOM_APPS + THIRD_PARTY_APPS
+# daphne를 staticfiles 앱보다 먼저 등록하도록 변경
+INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + STATIC_APPS + CUSTOM_APPS
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -118,6 +124,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "a_core.wsgi.application"
+
+# ASGI 적용
+ASGI_APPLICATION = "a_core.asgi.application"
+
+# Channel Layer 설정 (Redis 사용)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],  # docker-compose에서 지정한 redis 서비스명
+        },
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

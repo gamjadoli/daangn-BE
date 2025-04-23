@@ -1,3 +1,4 @@
+from .chat import ChatMessage, ChatRoom, ChatRoomParticipant
 from .email_verification import EmailVerification
 from .files import File
 from .product import InterestProduct, Product, ProductImage
@@ -14,4 +15,7 @@ __all__ = [
     "SigunguRegion",
     "EupmyeondongRegion",
     "UserActivityRegion",
+    "ChatRoom",
+    "ChatRoomParticipant",
+    "ChatMessage",
 ]

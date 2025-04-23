@@ -1,5 +1,6 @@
 from ninja import NinjaAPI
 
+from .chat import router as chat_router
 from .health import router as health_router
 from .products import router as product_router
 from .region import public_router as region_public_router
@@ -22,3 +23,4 @@ api.add_router(
     "/public/regions/", region_public_router, tags=["Regions"]
 )  # 공개 지역 API 추가
 api.add_router("/products/", product_router, tags=["Products"])
+api.add_router("/chats/", chat_router, tags=["채팅"])

@@ -64,6 +64,8 @@ class NearbyRegionDataSchema(Schema):
     sigungu: str = Field(..., description="시/군/구 (예: 강남구, 중구)")
     eupmyeondong: str = Field(..., description="읍/면/동 (예: 역삼동, 명동)")
     distance: int = Field(..., description="현재 위치에서의 거리(미터)")
+    latitude: float = Field(..., description="위도 좌표")
+    longitude: float = Field(..., description="경도 좌표")
 
 
 class NearbyRegionsResponseSchema(Schema):

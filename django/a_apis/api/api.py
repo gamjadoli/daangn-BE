@@ -23,4 +23,4 @@ api.add_router(
     "/public/regions/", region_public_router, tags=["Regions"]
 )  # 공개 지역 API 추가
 api.add_router("/products/", product_router, tags=["Products"])
-api.add_router("/chats/", chat_router, tags=["채팅"])
+api.add_router("/chats/", chat_router, tags=["chat"])

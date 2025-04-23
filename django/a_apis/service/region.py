@@ -172,6 +172,8 @@ class SGISService:
                 "sigungu": current_region["sgg_nm"],
                 "eupmyeondong": current_region["adm_nm"],
                 "distance": 0,
+                "latitude": latitude,
+                "longitude": longitude,
             }
         ]
         unique_regions = {current_key}  # 중복 제거를 위한 집합
@@ -226,6 +228,8 @@ class SGISService:
                 "sigungu": region_info["sgg_nm"],
                 "eupmyeondong": region_info["adm_nm"],
                 "distance": dist,
+                "latitude": lat,
+                "longitude": lon,
             }
         except Exception as e:
             logger.error(f"포인트 지역 정보 조회 실패: {str(e)}")

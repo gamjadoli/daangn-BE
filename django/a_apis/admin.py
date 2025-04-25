@@ -1,3 +1,4 @@
+from a_apis.models.chat import ChatMessage, ChatRoom, ChatRoomParticipant
 from a_apis.models.product import InterestProduct, Product, ProductImage
 from a_apis.models.region import (
     EupmyeondongRegion,
@@ -17,11 +18,12 @@ class ProductImageInline(admin.TabularInline):
     verbose_name = "상품 이미지"
     verbose_name_plural = "상품 이미지 목록"
     readonly_fields = ["image_preview"]
+    raw_id_fields = ["file"]
 
     def image_preview(self, obj):
-        if obj.image:
+        if obj.file and hasattr(obj.file, "url"):
             return format_html(
-                '<img src="{}" width="150" height="150" />', obj.image.url
+                '<img src="{}" width="150" height="150" />', obj.file.url
             )
         return "이미지 없음"
 
@@ -35,6 +37,7 @@ class ProductAdmin(admin.ModelAdmin):
         "title",
         "user",
         "price",
+        "trade_type",
         "status",
         "view_count",
         "refresh_at",
@@ -43,6 +46,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     list_filter = (
         "status",
+        "trade_type",
         "created_at",
         "refresh_at",
     )
@@ -69,7 +73,9 @@ class ProductAdmin(admin.ModelAdmin):
                 "fields": (
                     "title",
                     "user",
+                    "trade_type",
                     "price",
+                    "accept_price_offer",
                     "status",
                 )
             },
@@ -82,6 +88,10 @@ class ProductAdmin(admin.ModelAdmin):
                     "view_count",
                 )
             },
+        ),
+        (
+            "위치 정보",
+            {"fields": ("location_description",)},
         ),
         (
             "날짜 정보",
@@ -109,9 +119,9 @@ class ProductImageAdmin(admin.ModelAdmin):
     readonly_fields = ["image_preview"]
 
     def image_preview(self, obj):
-        if obj.image:
+        if obj.file and hasattr(obj.file, "url"):
             return format_html(
-                '<img src="{}" width="150" height="150" />', obj.image.url
+                '<img src="{}" width="150" height="150" />', obj.file.url
             )
         return "이미지 없음"
 
@@ -192,3 +202,97 @@ class InterestProductAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user", "product")
+
+
+@admin.register(ChatRoom)
+class ChatRoomAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "product",
+        "get_participants",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+    list_filter = ("status", "created_at", "updated_at")
+    search_fields = (
+        "product__title",
+        "participants__user__nickname",
+        "participants__user__email",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    def get_participants(self, obj):
+        participants = obj.participants.select_related("user").all()
+        return ", ".join([p.user.nickname for p in participants])
+
+    get_participants.short_description = "참여자"
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("product")
+            .prefetch_related("participants", "participants__user")
+        )
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "chat_room",
+        "sender",
+        "short_message",
+        "is_deleted",
+        "created_at",
+    )
+    list_filter = ("is_deleted", "created_at")
+    search_fields = (
+        "message",
+        "sender__nickname",
+        "sender__email",
+        "chat_room__product__title",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    def short_message(self, obj):
+        max_length = 30
+        if len(obj.message) > max_length:
+            return f"{obj.message[:max_length]}..."
+        return obj.message
+
+    short_message.short_description = "메시지"
+
+    def get_queryset(self, request):
+        return (
+            super().get_queryset(request).select_related("chat_room", "sender", "file")
+        )
+
+
+@admin.register(ChatRoomParticipant)
+class ChatRoomParticipantAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "chat_room",
+        "user",
+        "is_active",
+        "last_read_message_id",
+        "created_at",
+        "updated_at",
+    )
+    list_filter = ("is_active", "created_at", "updated_at")
+    search_fields = ("user__nickname", "user__email", "chat_room__product__title")
+    readonly_fields = ("created_at", "updated_at")
+
+    def last_read_message_id(self, obj):
+        return obj.last_read_message.id if obj.last_read_message else "-"
+
+    last_read_message_id.short_description = "마지막 읽은 메시지 ID"
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("chat_room", "user", "last_read_message")
+        )

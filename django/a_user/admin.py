@@ -2,10 +2,28 @@ from a_user.models import User
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserCreationForm
+
+
+class CustomUserCreationForm(UserCreationForm):
+    class Meta:
+        model = User
+        fields = ("email", "nickname", "phone_number")
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        # username 필드를 이메일 값으로 자동 설정
+        user.username = self.cleaned_data["email"]
+        if commit:
+            user.save()
+        return user
 
 
 @admin.register(User)
 class CustomUserAdmin(BaseUserAdmin):
+    # 커스텀 생성 폼 사용
+    add_form = CustomUserCreationForm
+
     list_display = (
         "id",
         "email",
@@ -102,3 +120,9 @@ class CustomUserAdmin(BaseUserAdmin):
             },
         ),
     )
+
+    def save_model(self, request, obj, form, change):
+        # 사용자 생성 또는 수정 시 username 필드를 이메일로 설정
+        if not change:  # 새 사용자를 생성할 때만
+            obj.username = obj.email
+        super().save_model(request, obj, form, change)

@@ -4,6 +4,30 @@ from ninja import Field, Schema
 from pydantic import validator
 
 
+class ProductCategorySchema(Schema):
+    """카테고리 스키마"""
+
+    id: int = Field(..., description="카테고리 ID")
+    name: str = Field(..., description="카테고리명")
+    parent_id: Optional[int] = Field(None, description="상위 카테고리 ID")
+
+
+class CategoryListResponseSchema(Schema):
+    """카테고리 목록 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: List[ProductCategorySchema] = Field([], description="카테고리 목록")
+
+
+class CategorySearchResponseSchema(Schema):
+    """카테고리 검색 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: List[ProductCategorySchema] = Field([], description="추천 카테고리 목록")
+
+
 class LocationSchema(Schema):
     """거래 위치 스키마"""
 
@@ -35,6 +59,7 @@ class ProductCreateSchema(Schema):
     )
     price: Optional[int] = Field(None, description="판매 가격 (나눔하기인 경우 무시)")
     accept_price_offer: bool = Field(False, description="가격 제안 허용 여부")
+    category_id: Optional[int] = Field(None, description="카테고리 ID")
     description: str = Field(
         ..., description="상품 설명 (상세 정보, 거래 관련 주의사항 등)"
     )
@@ -89,6 +114,7 @@ class ProductDetailSchema(Schema):
         ..., description="거래 방식 (sale: 판매하기, share: 나눔하기)"
     )
     price: Optional[int] = Field(None, description="판매 가격")
+    category: Optional[ProductCategorySchema] = Field(None, description="상품 카테고리")
     accept_price_offer: bool = Field(..., description="가격 제안 허용 여부")
     description: str = Field(..., description="상품 설명")
     view_count: int = Field(..., description="조회수")

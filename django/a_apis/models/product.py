@@ -3,6 +3,32 @@ from a_common.models import CommonModel
 from django.contrib.gis.db import models  # PostGIS 필드 사용
 
 
+class ProductCategory(CommonModel):
+    """상품 카테고리 모델"""
+
+    name = models.CharField(max_length=50, verbose_name="카테고리명")
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="상위 카테고리",
+    )
+    order = models.PositiveIntegerField(default=0, verbose_name="정렬 순서")
+
+    class Meta:
+        db_table = "product_categories"
+        verbose_name = "상품 카테고리"
+        verbose_name_plural = "상품 카테고리 목록"
+        ordering = ["order", "name"]
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+
 class Product(CommonModel):
     class TradeType(models.TextChoices):
         SALE = "sale", "판매하기"
@@ -31,6 +57,14 @@ class Product(CommonModel):
         default=False, verbose_name="가격 제안 허용"
     )
     description = models.TextField(verbose_name="상품 설명")
+    category = models.ForeignKey(
+        ProductCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="products",
+        verbose_name="상품 카테고리",
+    )
     meeting_location = models.PointField(
         srid=4326, null=True, verbose_name="거래 희망 위치"
     )

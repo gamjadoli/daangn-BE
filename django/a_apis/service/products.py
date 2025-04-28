@@ -1,7 +1,7 @@
 import math
 from datetime import datetime, timedelta
 
-from a_apis.models import InterestProduct, Product, ProductImage
+from a_apis.models import InterestProduct, Product, ProductCategory, ProductImage
 from a_apis.service.files import FileService
 
 from django.contrib.gis.geos import Point
@@ -35,6 +35,7 @@ class ProductService:
                 price=data.price if data.trade_type == "sale" else None,
                 accept_price_offer=data.accept_price_offer,
                 description=data.description,
+                category_id=data.category_id,  # 카테고리 필드 추가
                 meeting_location=meeting_point,
                 location_description=data.meeting_location.description,
                 refresh_at=timezone.now(),  # 등록 시점으로 refresh_at 설정
@@ -601,6 +602,15 @@ class ProductService:
             "description": product.location_description,
         }
 
+        # 카테고리 정보
+        category_data = None
+        if product.category:
+            category_data = {
+                "id": product.category.id,
+                "name": product.category.name,
+                "parent_id": product.category.parent_id,
+            }
+
         return {
             "id": product.id,
             "title": product.title,
@@ -619,4 +629,186 @@ class ProductService:
             "meeting_location": location,
             "images": images,
             "is_interested": is_interested,
+            "category": category_data,
         }
+
+    # 카테고리 관련 메서드 추가
+    @staticmethod
+    def get_categories() -> dict:
+        """모든 카테고리 목록 조회 - 계층 구조로 정리된 형태"""
+        try:
+            # 대분류 카테고리 조회 (parent_id가 NULL)
+            parent_categories = ProductCategory.objects.filter(
+                parent__isnull=True
+            ).order_by("order", "name")
+
+            result = []
+
+            # 각 대분류별로 소분류 추가
+            for parent in parent_categories:
+                # 대분류 정보
+                parent_data = {
+                    "id": parent.id,
+                    "name": parent.name,
+                    "parent_id": None,
+                    "subcategories": [],
+                }
+
+                # 해당 대분류의 소분류 조회
+                subcategories = ProductCategory.objects.filter(
+                    parent_id=parent.id
+                ).order_by("order", "name")
+
+                # 소분류 정보 추가
+                for sub in subcategories:
+                    parent_data["subcategories"].append(
+                        {"id": sub.id, "name": sub.name, "parent_id": parent.id}
+                    )
+
+                # 결과에 추가
+                result.append(parent_data)
+
+            return {
+                "success": True,
+                "message": "카테고리 목록을 조회했습니다.",
+                "data": result,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"카테고리 목록 조회 실패: {str(e)}",
+                "data": [],
+            }
+
+    @staticmethod
+    def suggest_categories(title: str) -> dict:
+        """상품 제목 기반 카테고리 추천"""
+        try:
+            if not title or len(title) < 2:
+                return {
+                    "success": True,
+                    "message": "제목이 너무 짧습니다.",
+                    "data": [],
+                }
+
+            # 키워드-카테고리 매핑 (카테고리 ID 기준)
+            keyword_mapping = {
+                # 디지털/가전 관련 키워드
+                "아이폰": 101,  # 스마트폰
+                "갤럭시": 101,  # 스마트폰
+                "삼성폰": 101,  # 스마트폰
+                "휴대폰": 101,  # 스마트폰
+                "핸드폰": 101,  # 스마트폰
+                "아이패드": 102,  # 태블릿
+                "갤탭": 102,  # 태블릿
+                "맥북": 103,  # 노트북
+                "그램": 103,  # 노트북
+                "삼성북": 103,  # 노트북
+                "아이맥": 104,  # 데스크탑
+                "컴퓨터": 104,  # 데스크탑
+                "pc": 104,  # 데스크탑
+                "에어팟": 106,  # 이어폰
+                "버즈": 106,  # 이어폰
+                "소니": 107,  # 헤드폰
+                "플스": 108,  # 게임기
+                "닌텐도": 108,  # 게임기
+                "플레이스테이션": 108,  # 게임기
+                "엑스박스": 108,  # 게임기
+                # 가구/인테리어 관련 키워드
+                "매트리스": 201,  # 침대
+                "쇼파": 202,  # 소파
+                "테이블": 203,  # 책상
+                "책상": 203,  # 책상
+                "의자": 204,  # 의자
+                "서랍": 205,  # 옷장
+                "스탠드": 206,  # 조명
+                "전등": 206,  # 조명
+                "블라인드": 207,  # 커튼
+                "카펫": 208,  # 러그
+                # 의류 관련 키워드
+                "원피스": 301,  # 여성의류
+                "스커트": 301,  # 여성의류
+                "블라우스": 301,  # 여성의류
+                "셔츠": 302,  # 남성의류
+                "정장": 302,  # 남성의류
+                "운동화": 303,  # 신발
+                "구두": 303,  # 신발
+                "나이키": 303,  # 신발
+                "아디다스": 303,  # 신발
+                "백팩": 304,  # 가방
+                "롤렉스": 305,  # 시계
+                "목걸이": 306,  # 주얼리
+                "반지": 306,  # 주얼리
+                "귀걸이": 306,  # 주얼리
+                "모자": 307,  # 모자
+                "양말": 308,  # 양말
+            }
+
+            # 제목에 포함된 키워드로 카테고리 검색
+            # 1. 단어 단위로 분리하여 각 단어로 검색
+            words = title.lower().split()  # 소문자로 변환하여 대소문자 구분 없앰
+            categories = set()
+            matched_keywords = set()
+
+            # 키워드 매핑 기반 검색
+            for word in words:
+                if len(word) >= 2 and word in keyword_mapping:  # 매핑된 키워드 확인
+                    category_id = keyword_mapping[word]
+                    try:
+                        category = ProductCategory.objects.get(id=category_id)
+                        categories.add(category)
+                        matched_keywords.add(word)
+                    except ProductCategory.DoesNotExist:
+                        pass
+
+            # 이름 기반 검색 (키워드 매핑에서 찾지 못한 단어에 대해)
+            for word in words:
+                if (
+                    len(word) >= 2 and word not in matched_keywords
+                ):  # 이미 매칭된 키워드는 제외
+                    found_categories = ProductCategory.objects.filter(
+                        name__icontains=word
+                    ).order_by("order", "name")[
+                        :5
+                    ]  # 최대 5개
+
+                    for category in found_categories:
+                        categories.add(category)
+
+            # 결과 변환
+            result = []
+            for category in categories:
+                result.append(
+                    {
+                        "id": category.id,
+                        "name": category.name,
+                        "parent_id": category.parent_id,
+                    }
+                )
+
+            # 결과가 없으면 대분류 제안
+            if not result:
+                # 디지털/가전 카테고리 기본 제안
+                try:
+                    digital_category = ProductCategory.objects.get(id=1)  # 디지털/가전
+                    result.append(
+                        {
+                            "id": digital_category.id,
+                            "name": digital_category.name,
+                            "parent_id": digital_category.parent_id,
+                        }
+                    )
+                except ProductCategory.DoesNotExist:
+                    pass
+
+            return {
+                "success": True,
+                "message": "추천 카테고리를 조회했습니다.",
+                "data": result[:5],  # 최대 5개로 제한
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"카테고리 추천 실패: {str(e)}",
+                "data": [],
+            }

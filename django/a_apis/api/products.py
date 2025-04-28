@@ -3,6 +3,8 @@ from typing import List, Optional
 from a_apis.auth.bearer import AuthBearer
 from a_apis.models.product import Product
 from a_apis.schema.products import (
+    CategoryListResponseSchema,
+    CategorySearchResponseSchema,
     ProductCreateSchema,
     ProductListResponseSchema,
     ProductResponseSchema,
@@ -35,6 +37,31 @@ def get_my_products(
     return ProductService.get_user_products(
         user_id=request.user.id, status=status, page=page, page_size=page_size
     )
+
+
+# 카테고리 관련 API (상품 ID 경로보다 먼저 정의)
+@router.get("/categories", response=CategoryListResponseSchema)
+def get_categories(request):
+    """
+    모든 카테고리 목록 조회 API
+
+    상품 등록/수정 시 선택 가능한 모든 카테고리 목록 반환
+    """
+    return ProductService.get_categories()
+
+
+@router.get("/categories/suggest", response=CategorySearchResponseSchema)
+def suggest_categories(request, title: str):
+    """
+    제목 기반 카테고리 추천 API
+
+    입력된 상품 제목에 기반하여 적합한 카테고리를 추천
+    최소 2글자 이상 입력
+
+    Parameters:
+        title: 상품 제목
+    """
+    return ProductService.suggest_categories(title)
 
 
 # 나머지 라우트 등록

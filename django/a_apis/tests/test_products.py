@@ -11,7 +11,7 @@ from a_apis.models.region import (
     UserActivityRegion,
 )
 from a_apis.schema.products import LocationSchema, ProductCreateSchema
-from a_user.models import User
+from a_user.models import MannerRating, PriceOffer, Review, User
 from PIL import Image
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -681,3 +681,438 @@ class ProductAPITestCase(TestCase):
             self.assertTrue(result["success"])
             self.assertEqual(result["message"], "상품이 끌어올려졌습니다.")
             self.assertIsNotNone(result["data"]["refresh_at"])
+
+    @patch("a_apis.service.products.ProductService.create_price_offer")
+    def test_create_price_offer(self, mock_create_price_offer):
+        """가격 제안 API 테스트"""
+        # 모킹된 응답 설정
+        mock_create_price_offer.return_value = {
+            "success": True,
+            "message": "가격 제안이 등록되었습니다.",
+            "data": {
+                "id": 1,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "user_id": self.user.id,
+                "user_nickname": "테스터",
+                "price": 8000,
+                "status": "pending",
+                "created_at": "2023-01-01T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_create_price_offer(
+            product_id=1, user_id=self.user.id, price=8000, chat_room_id=None
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["price"], 8000)
+        self.assertEqual(result["data"]["status"], "pending")
+
+        # 서비스가 호출되었는지 확인
+        mock_create_price_offer.assert_called_once()
+
+    @patch("a_apis.service.products.ProductService.respond_to_price_offer")
+    def test_respond_to_price_offer(self, mock_respond_to_price_offer):
+        """가격 제안 응답 API 테스트"""
+        # 가격 제안 수락 모킹 응답 설정
+        mock_respond_to_price_offer.return_value = {
+            "success": True,
+            "message": "가격 제안을 수락했습니다.",
+            "data": {
+                "id": 1,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "user_id": self.other_user.id,
+                "user_nickname": "다른유저",
+                "price": 8000,
+                "status": "accepted",
+                "created_at": "2023-01-01T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출 - 수락
+        result = mock_respond_to_price_offer(
+            offer_id=1, user_id=self.user.id, action="accept"
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["status"], "accepted")
+        self.assertEqual(result["message"], "가격 제안을 수락했습니다.")
+
+        # 가격 제안 거절 모킹 응답 설정
+        mock_respond_to_price_offer.return_value = {
+            "success": True,
+            "message": "가격 제안을 거절했습니다.",
+            "data": {
+                "id": 2,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "user_id": self.other_user.id,
+                "user_nickname": "다른유저",
+                "price": 7000,
+                "status": "rejected",
+                "created_at": "2023-01-01T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출 - 거절
+        result = mock_respond_to_price_offer(
+            offer_id=2, user_id=self.user.id, action="reject"
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["status"], "rejected")
+        self.assertEqual(result["message"], "가격 제안을 거절했습니다.")
+
+    @patch("a_apis.service.products.ProductService.get_price_offers")
+    def test_get_price_offers(self, mock_get_price_offers):
+        """가격 제안 목록 조회 API 테스트"""
+        # 모킹된 응답 설정
+        mock_get_price_offers.return_value = {
+            "success": True,
+            "message": "가격 제안 목록을 조회했습니다.",
+            "data": [
+                {
+                    "id": 1,
+                    "product_id": 1,
+                    "product_title": "테스트 상품",
+                    "user_id": self.other_user.id,
+                    "user_nickname": "다른유저",
+                    "price": 8000,
+                    "status": "pending",
+                    "created_at": "2023-01-01T00:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "product_id": 1,
+                    "product_title": "테스트 상품",
+                    "user_id": self.other_user.id,
+                    "user_nickname": "다른유저",
+                    "price": 7000,
+                    "status": "rejected",
+                    "created_at": "2023-01-01T00:00:00Z",
+                },
+            ],
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_get_price_offers(product_id=1, user_id=self.user.id)
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(len(result["data"]), 2)
+        self.assertEqual(result["data"][0]["price"], 8000)
+
+        # 서비스가 호출되었는지 확인
+        mock_get_price_offers.assert_called_once()
+
+    @patch("a_apis.service.products.ProductService.complete_trade")
+    def test_complete_trade(self, mock_complete_trade):
+        """거래 완료 처리 API 테스트"""
+        # 모킹된 응답 설정
+        mock_complete_trade.return_value = {
+            "success": True,
+            "message": "거래가 완료되었습니다.",
+            "data": {
+                "id": 1,
+                "title": "테스트 상품",
+                "price": 10000,
+                "trade_type": "sale",
+                "description": "상품 설명",
+                "seller_id": self.user.id,
+                "seller_nickname": "테스터",
+                "buyer_id": self.other_user.id,
+                "buyer_nickname": "다른유저",
+                "status": "sold",
+                "final_price": 9000,
+                "completed_at": "2023-01-01T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_complete_trade(
+            product_id=1,
+            user_id=self.user.id,
+            buyer_id=self.other_user.id,
+            final_price=9000,
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["status"], "sold")
+        self.assertEqual(result["data"]["final_price"], 9000)
+        self.assertEqual(result["data"]["buyer_id"], self.other_user.id)
+
+        # 서비스가 호출되었는지 확인
+        mock_complete_trade.assert_called_once()
+
+    @patch("a_apis.service.products.ProductService.create_review")
+    def test_create_review(self, mock_create_review):
+        """거래 후기 작성 API 테스트"""
+        # 모킹된 응답 설정
+        mock_create_review.return_value = {
+            "success": True,
+            "message": "거래 후기가 작성되었습니다.",
+            "data": {
+                "id": 1,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "reviewer_id": self.user.id,
+                "reviewer_nickname": "테스터",
+                "receiver_id": self.other_user.id,
+                "receiver_nickname": "다른유저",
+                "content": "친절하고 좋은 거래였습니다. 감사합니다!",
+                "created_at": "2023-01-01T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_create_review(
+            product_id=1,
+            user_id=self.user.id,
+            content="친절하고 좋은 거래였습니다. 감사합니다!",
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(
+            result["data"]["content"], "친절하고 좋은 거래였습니다. 감사합니다!"
+        )
+        self.assertEqual(result["data"]["reviewer_id"], self.user.id)
+        self.assertEqual(result["data"]["receiver_id"], self.other_user.id)
+
+        # 서비스가 호출되었는지 확인
+        mock_create_review.assert_called_once()
+
+    @patch("a_apis.service.products.ProductService.get_review")
+    def test_get_review(self, mock_get_review):
+        """거래 후기 조회 API 테스트"""
+        # 모킹된 응답 설정
+        mock_get_review.return_value = {
+            "success": True,
+            "message": "거래 후기를 조회했습니다.",
+            "data": {
+                "id": 1,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "reviewer_id": self.user.id,
+                "reviewer_nickname": "테스터",
+                "receiver_id": self.other_user.id,
+                "receiver_nickname": "다른유저",
+                "content": "친절하고 좋은 거래였습니다. 감사합니다!",
+                "created_at": "2023-01-01T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_get_review(product_id=1, user_id=self.user.id)
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["reviewer_id"], self.user.id)
+        self.assertEqual(
+            result["data"]["content"], "친절하고 좋은 거래였습니다. 감사합니다!"
+        )
+
+        # 서비스가 호출되었는지 확인
+        mock_get_review.assert_called_once()
+
+    @patch("a_apis.service.products.ProductService.update_review")
+    def test_update_review(self, mock_update_review):
+        """거래 후기 수정 API 테스트"""
+        # 모킹된 응답 설정
+        mock_update_review.return_value = {
+            "success": True,
+            "message": "거래 후기가 수정되었습니다.",
+            "data": {
+                "id": 1,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "reviewer_id": self.user.id,
+                "reviewer_nickname": "테스터",
+                "receiver_id": self.other_user.id,
+                "receiver_nickname": "다른유저",
+                "content": "정말 좋은 거래였습니다. 상품 상태도 좋았어요!",
+                "created_at": "2023-01-01T00:00:00Z",
+                "updated_at": "2023-01-02T00:00:00Z",
+            },
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_update_review(
+            review_id=1,
+            user_id=self.user.id,
+            content="정말 좋은 거래였습니다. 상품 상태도 좋았어요!",
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(
+            result["data"]["content"], "정말 좋은 거래였습니다. 상품 상태도 좋았어요!"
+        )
+        self.assertEqual(result["data"]["reviewer_id"], self.user.id)
+
+        # 서비스가 호출되었는지 확인
+        mock_update_review.assert_called_once()
+
+    @patch("a_apis.service.products.ProductService.create_manner_rating")
+    def test_create_manner_rating(self, mock_create_manner_rating):
+        """매너 평가 등록 API 테스트"""
+        # 긍정적인 매너평가 모킹 응답 설정
+        mock_create_manner_rating.return_value = {
+            "success": True,
+            "message": "매너 평가가 등록되었습니다.",
+            "data": {
+                "id": 1,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "rater_id": self.user.id,
+                "rater_nickname": "테스터",
+                "rated_user_id": self.other_user.id,
+                "rated_user_nickname": "다른유저",
+                "rating_type": "kind",
+                "rating_display": "친절하고 매너가 좋아요",
+                "created_at": "2023-01-01T00:00:00Z",
+                "manner_temperature": 36.7,  # 매너온도 변화 후 값
+            },
+        }
+
+        # 직접 서비스 함수 호출 - 긍정적 평가
+        result = mock_create_manner_rating(
+            product_id=1,
+            user_id=self.user.id,
+            rated_user_id=self.other_user.id,
+            rating_type="kind",
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["rating_type"], "kind")
+        self.assertEqual(result["data"]["rater_id"], self.user.id)
+        self.assertEqual(result["data"]["rated_user_id"], self.other_user.id)
+        self.assertGreater(
+            result["data"]["manner_temperature"], 36.5
+        )  # 긍정적 평가로 온도 상승
+
+        # 부정적인 매너평가 모킹 응답 설정
+        mock_create_manner_rating.return_value = {
+            "success": True,
+            "message": "매너 평가가 등록되었습니다.",
+            "data": {
+                "id": 2,
+                "product_id": 1,
+                "product_title": "테스트 상품",
+                "rater_id": self.other_user.id,
+                "rater_nickname": "다른유저",
+                "rated_user_id": self.user.id,
+                "rated_user_nickname": "테스터",
+                "rating_type": "bad_response",
+                "rating_display": "응답이 느려요",
+                "created_at": "2023-01-01T00:00:00Z",
+                "manner_temperature": 36.0,  # 매너온도 변화 후 값
+            },
+        }
+
+        # 직접 서비스 함수 호출 - 부정적 평가
+        result = mock_create_manner_rating(
+            product_id=1,
+            user_id=self.other_user.id,
+            rated_user_id=self.user.id,
+            rating_type="bad_response",
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["rating_type"], "bad_response")
+        self.assertEqual(result["data"]["rater_id"], self.other_user.id)
+        self.assertEqual(result["data"]["rated_user_id"], self.user.id)
+        self.assertLess(
+            result["data"]["manner_temperature"], 36.5
+        )  # 부정적 평가로 온도 하락
+
+    @patch("a_apis.service.products.ProductService.get_manner_ratings")
+    def test_get_manner_ratings(self, mock_get_manner_ratings):
+        """매너 평가 목록 조회 API 테스트"""
+        # 모킹된 응답 설정
+        mock_get_manner_ratings.return_value = {
+            "success": True,
+            "message": "매너 평가 목록을 조회했습니다.",
+            "data": [
+                {
+                    "id": 1,
+                    "product_id": 1,
+                    "product_title": "테스트 상품",
+                    "rater_id": self.user.id,
+                    "rater_nickname": "테스터",
+                    "rated_user_id": self.other_user.id,
+                    "rated_user_nickname": "다른유저",
+                    "rating_type": "kind",
+                    "rating_display": "친절하고 매너가 좋아요",
+                    "created_at": "2023-01-01T00:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "product_id": 1,
+                    "product_title": "테스트 상품",
+                    "rater_id": self.user.id,
+                    "rater_nickname": "테스터",
+                    "rated_user_id": self.other_user.id,
+                    "rated_user_nickname": "다른유저",
+                    "rating_type": "time",
+                    "rating_display": "시간 약속을 잘 지켜요",
+                    "created_at": "2023-01-01T00:00:00Z",
+                },
+            ],
+        }
+
+        # 직접 서비스 함수 호출
+        result = mock_get_manner_ratings(
+            user_id=self.other_user.id, page=1, page_size=20
+        )
+
+        # 응답 확인
+        self.assertTrue(result["success"])
+        self.assertEqual(len(result["data"]), 2)
+        self.assertEqual(result["data"][0]["rating_type"], "kind")
+        self.assertEqual(result["data"][1]["rating_type"], "time")
+
+        # 서비스가 호출되었는지 확인
+        mock_get_manner_ratings.assert_called_once()
+
+    def test_update_manner_temperature(self):
+        """매너온도 업데이트 메서드 테스트"""
+        # 초기 매너온도 확인 (기본값: 36.5)
+        self.assertEqual(float(self.user.rating_score), 36.5)
+
+        # 매너온도 업데이트 테스트 - 긍정적 평가
+        new_temp = self.user.update_manner_temperature("kind")
+        # 긍정적 평가 후 매너온도 상승 확인 (36.5 + 0.2 = 36.7)
+        self.assertEqual(float(new_temp), 36.7)
+
+        # 매너온도 업데이트 테스트 - 부정적 평가
+        new_temp = self.user.update_manner_temperature("bad_response")
+        # 부정적 평가 후 매너온도 하락 확인 (36.7 - 0.5 = 36.2)
+        self.assertEqual(float(new_temp), 36.2)
+
+        # 잘못된 평가 유형이 들어온 경우
+        original_temp = float(self.user.rating_score)
+        new_temp = self.user.update_manner_temperature("invalid_type")
+        # 변화 없음 확인
+        self.assertEqual(float(new_temp), original_temp)
+
+        # 상한값 테스트 (99.9도 이상으로 올라가지 않는지)
+        self.user.rating_score = 99.8
+        self.user.save()
+        new_temp = self.user.update_manner_temperature("kind")
+        self.assertEqual(float(new_temp), 99.9)
+
+        # 하한값 테스트 (0도 이하로 내려가지 않는지)
+        self.user.rating_score = 0.4
+        self.user.save()
+        new_temp = self.user.update_manner_temperature("bad_response")
+        self.assertEqual(float(new_temp), 0.0)

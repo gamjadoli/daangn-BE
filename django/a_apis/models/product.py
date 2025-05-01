@@ -1,6 +1,10 @@
 from a_common.models import CommonModel
 
+from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models  # PostGIS 필드 사용
+from django.utils import timezone
+
+User = get_user_model()
 
 
 class ProductCategory(CommonModel):
@@ -39,11 +43,27 @@ class Product(CommonModel):
         RESERVED = "reserved", "예약중"
         SOLDOUT = "soldout", "판매완료"
 
+    class TradeCompleteStatus(models.TextChoices):
+        """거래 완료 프로세스 상태"""
+
+        NOT_COMPLETED = "not_completed", "거래 완료되지 않음"
+        COMPLETED = "completed", "거래 완료됨"
+        REVIEWED = "reviewed", "후기 작성 완료"
+        RATED = "rated", "매너 평가 완료"
+
     user = models.ForeignKey(
         "a_user.User",  # 문자열로 User 모델 참조
         on_delete=models.CASCADE,
         related_name="products",
         verbose_name="판매자",
+    )
+    buyer = models.ForeignKey(
+        "a_user.User",  # 구매자 정보
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchased_products",
+        verbose_name="구매자",
     )
     title = models.CharField(max_length=100, verbose_name="상품 제목")
     trade_type = models.CharField(
@@ -53,6 +73,9 @@ class Product(CommonModel):
         verbose_name="거래 방식",
     )
     price = models.PositiveIntegerField(null=True, blank=True, verbose_name="판매 금액")
+    final_price = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="최종 거래 금액"
+    )
     accept_price_offer = models.BooleanField(
         default=False, verbose_name="가격 제안 허용"
     )
@@ -80,6 +103,15 @@ class Product(CommonModel):
         default=Status.NEW,
         verbose_name="상품 상태",
     )
+    trade_complete_status = models.CharField(
+        max_length=20,
+        choices=TradeCompleteStatus.choices,
+        default=TradeCompleteStatus.NOT_COMPLETED,
+        verbose_name="거래 완료 프로세스 상태",
+    )
+    completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="거래 완료 시간"
+    )
     view_count = models.PositiveIntegerField(default=0, verbose_name="조회수")
     refresh_at = models.DateTimeField(
         null=True, blank=True, verbose_name="끌어올린 시간"
@@ -93,6 +125,28 @@ class Product(CommonModel):
 
     def __str__(self):
         return f"{self.title} ({self.get_status_display()})"
+
+    def mark_as_completed(self, buyer, final_price=None):
+        """거래 완료 처리 메서드"""
+        try:
+            self.status = self.Status.SOLDOUT
+            self.buyer = buyer
+            self.final_price = final_price if final_price else self.price
+            self.completed_at = models.timezone.now()
+            self.trade_complete_status = self.TradeCompleteStatus.COMPLETED
+            self.save(
+                update_fields=[
+                    "status",
+                    "buyer",
+                    "final_price",
+                    "completed_at",
+                    "trade_complete_status",
+                    "updated_at",
+                ]
+            )
+            return True
+        except Exception:
+            return False
 
 
 class ProductImage(CommonModel):

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from a_apis.models import InterestProduct, Product, ProductCategory, ProductImage
 from a_apis.service.files import FileService
+from a_user.models import MannerRating, Review
 
 from django.contrib.gis.geos import Point
 from django.db import transaction
@@ -811,4 +812,591 @@ class ProductService:
                 "success": False,
                 "message": f"카테고리 추천 실패: {str(e)}",
                 "data": [],
+            }
+
+    @staticmethod
+    def create_price_offer(
+        product_id: int, user_id: int, price: int, chat_room_id: int = None
+    ) -> dict:
+        """가격 제안 서비스"""
+        try:
+            # 상품 조회
+            product = Product.objects.select_related("user").get(id=product_id)
+
+            # 자신의 상품에는 제안 불가
+            if product.user_id == user_id:
+                return {
+                    "success": False,
+                    "message": "자신의 상품에는 가격 제안을 할 수 없습니다.",
+                }
+
+            # 거래 완료된 상품인지 확인
+            if product.status == Product.Status.SOLDOUT:
+                return {"success": False, "message": "이미 판매 완료된 상품입니다."}
+
+            # 가격 제안 허용 여부 확인
+            if not product.accept_price_offer:
+                return {
+                    "success": False,
+                    "message": "이 상품은 가격 제안을 허용하지 않습니다.",
+                }
+
+            # 가격 범위 체크 (원래 가격의 50~150% 범위 내에서만 허용)
+            if product.price:
+                min_price = max(1, int(product.price * 0.5))
+                max_price = int(product.price * 1.5)
+
+                if price < min_price or price > max_price:
+                    return {
+                        "success": False,
+                        "message": f"가격 제안은 원래 가격({product.price}원)의 50% ~ 150% 범위 내에서만 가능합니다.",
+                    }
+
+            # 채팅방 확인 (제공된 경우)
+            from a_apis.models.chat import ChatRoom
+
+            chat_room = None
+            if chat_room_id:
+                try:
+                    chat_room = ChatRoom.objects.get(
+                        id=chat_room_id, product_id=product_id
+                    )
+                except ChatRoom.DoesNotExist:
+                    return {"success": False, "message": "유효하지 않은 채팅방입니다."}
+
+            # 중복 제안 확인
+            from a_user.models import PriceOffer
+
+            existing_offer = PriceOffer.objects.filter(
+                product_id=product_id, user_id=user_id, status="pending"
+            ).exists()
+
+            if existing_offer:
+                # 기존 제안 업데이트
+                offer = PriceOffer.objects.get(
+                    product_id=product_id, user_id=user_id, status="pending"
+                )
+                offer.price = price
+                offer.save(update_fields=["price", "updated_at"])
+                message = "가격 제안이 업데이트되었습니다."
+            else:
+                # 새 제안 생성
+                from a_user.models import User
+
+                user = User.objects.get(id=user_id)
+                offer = PriceOffer.objects.create(
+                    product_id=product_id,
+                    user_id=user_id,
+                    price=price,
+                    chat_room_id=chat_room_id if chat_room_id else None,
+                )
+                message = "가격 제안이 등록되었습니다."
+
+            return {
+                "success": True,
+                "message": message,
+                "data": {
+                    "id": offer.id,
+                    "product_id": product_id,
+                    "product_title": product.title,
+                    "user_id": user_id,
+                    "user_nickname": user.nickname,
+                    "price": price,
+                    "status": offer.status,
+                    "created_at": offer.created_at.isoformat(),
+                },
+            }
+
+        except Product.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 상품입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def respond_to_price_offer(offer_id: int, user_id: int, action: str) -> dict:
+        """가격 제안 수락/거절 서비스"""
+        try:
+            from a_user.models import PriceOffer
+
+            offer = PriceOffer.objects.select_related("product", "user").get(
+                id=offer_id
+            )
+
+            # 상품 소유자 확인
+            if offer.product.user_id != user_id:
+                return {
+                    "success": False,
+                    "message": "이 제안에 대한 응답 권한이 없습니다.",
+                }
+
+            # 이미 처리된 제안인지 확인
+            if offer.status != "pending":
+                status_display = {
+                    "accepted": "수락",
+                    "rejected": "거절",
+                    "pending": "대기중",
+                }
+                return {
+                    "success": False,
+                    "message": f"이미 {status_display.get(offer.status)}된 제안입니다.",
+                }
+
+            # 수락 또는 거절 처리
+            if action == "accept":
+                offer.status = "accepted"
+                # 다른 대기중인 제안 모두 거절
+                PriceOffer.objects.filter(
+                    product_id=offer.product.id, status="pending"
+                ).exclude(id=offer_id).update(status="rejected")
+
+                # 수락 시 상품 가격 업데이트
+                offer.product.price = offer.price
+                offer.product.save(update_fields=["price", "updated_at"])
+
+                message = "가격 제안을 수락했습니다."
+            else:  # reject
+                offer.status = "rejected"
+                message = "가격 제안을 거절했습니다."
+
+            offer.save(update_fields=["status", "updated_at"])
+
+            return {
+                "success": True,
+                "message": message,
+                "data": {
+                    "id": offer.id,
+                    "product_id": offer.product.id,
+                    "product_title": offer.product.title,
+                    "user_id": offer.user.id,
+                    "user_nickname": offer.user.nickname,
+                    "price": offer.price,
+                    "status": offer.status,
+                    "created_at": offer.created_at.isoformat(),
+                },
+            }
+
+        except PriceOffer.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 가격 제안입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def get_price_offers(product_id: int, user_id: int) -> dict:
+        """상품 가격 제안 목록 조회 서비스"""
+        try:
+            product = Product.objects.get(id=product_id)
+
+            # 권한 확인 (판매자만 조회 가능)
+            if product.user_id != user_id:
+                return {"success": False, "message": "가격 제안 조회 권한이 없습니다."}
+
+            # 제안 목록 조회
+            from a_user.models import PriceOffer
+
+            offers = (
+                PriceOffer.objects.filter(product_id=product_id)
+                .select_related("user")
+                .order_by("-created_at")
+            )
+
+            data = []
+            for offer in offers:
+                data.append(
+                    {
+                        "id": offer.id,
+                        "product_id": product_id,
+                        "product_title": product.title,
+                        "user_id": offer.user.id,
+                        "user_nickname": offer.user.nickname,
+                        "price": offer.price,
+                        "status": offer.status,
+                        "created_at": offer.created_at.isoformat(),
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "가격 제안 목록을 조회했습니다.",
+                "data": data,
+            }
+
+        except Product.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 상품입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def complete_trade(
+        product_id: int, user_id: int, buyer_id: int, final_price: int = None
+    ) -> dict:
+        """거래 완료 처리 서비스"""
+        try:
+            product = Product.objects.get(id=product_id)
+
+            # 판매자 확인
+            if product.user_id != user_id:
+                return {"success": False, "message": "거래 완료 처리 권한이 없습니다."}
+
+            # 이미 판매 완료된 상품인지 확인
+            if product.status == Product.Status.SOLDOUT:
+                return {"success": False, "message": "이미 판매 완료된 상품입니다."}
+
+            # 구매자 확인
+            from a_user.models import User
+
+            try:
+                buyer = User.objects.get(id=buyer_id)
+            except User.DoesNotExist:
+                return {"success": False, "message": "존재하지 않는 구매자입니다."}
+
+            # 판매자와 구매자가 동일한지 확인
+            if buyer.id == user_id:
+                return {"success": False, "message": "자신에게 판매할 수 없습니다."}
+
+            # 거래 완료 처리
+            result = product.mark_as_completed(buyer, final_price)
+            if not result:
+                return {"success": False, "message": "거래 완료 처리에 실패했습니다."}
+
+            return {
+                "success": True,
+                "message": "상품이 거래 완료 처리되었습니다.",
+                "data": ProductService._product_to_detail(product, user_id),
+            }
+
+        except Product.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 상품입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def create_review(product_id: int, user_id: int, content: str) -> dict:
+        """거래 후기 작성 서비스"""
+        try:
+            product = Product.objects.select_related("user").get(id=product_id)
+
+            # 거래 완료된 상품인지 확인
+            if product.status != Product.Status.SOLDOUT:
+                return {
+                    "success": False,
+                    "message": "거래 완료된 상품에만 후기를 작성할 수 있습니다.",
+                }
+
+            # 거래 당사자(판매자 또는 구매자)인지 확인
+            if user_id != product.user_id and user_id != product.buyer_id:
+                return {
+                    "success": False,
+                    "message": "거래 당사자만 후기를 작성할 수 있습니다.",
+                }
+
+            # 이미 후기를 작성했는지 확인
+            from a_user.models import Review
+
+            if Review.objects.filter(
+                product_id=product_id, reviewer_id=user_id
+            ).exists():
+                return {"success": False, "message": "이미 후기를 작성했습니다."}
+
+            # 판매자가 작성하는지 구매자가 작성하는지 파악
+            is_seller = user_id == product.user_id
+
+            # 후기 수신자 설정
+            receiver_id = product.buyer_id if is_seller else product.user_id
+
+            # 후기 작성
+            from a_user.models import User
+
+            review = Review.objects.create(
+                product_id=product_id,
+                reviewer_id=user_id,
+                receiver_id=receiver_id,
+                content=content,
+            )
+
+            # 후기 작성 완료 상태로 업데이트
+            if product.trade_complete_status == Product.TradeCompleteStatus.COMPLETED:
+                product.trade_complete_status = Product.TradeCompleteStatus.REVIEWED
+                product.save(update_fields=["trade_complete_status", "updated_at"])
+
+            return {
+                "success": True,
+                "message": "거래 후기가 등록되었습니다.",
+                "data": {
+                    "id": review.id,
+                    "product_id": product_id,
+                    "product_title": product.title,
+                    "reviewer_id": user_id,
+                    "receiver_id": receiver_id,
+                    "content": content,
+                    "created_at": review.created_at.isoformat(),
+                },
+            }
+
+        except Product.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 상품입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def create_manner_rating(product_id: int, user_id: int, rating_types: list) -> dict:
+        """매너 평가 등록 서비스"""
+        try:
+            product = Product.objects.select_related("user").get(id=product_id)
+
+            # 거래 완료된 상품인지 확인
+            if product.status != Product.Status.SOLDOUT:
+                return {
+                    "success": False,
+                    "message": "거래 완료된 상품에만 매너 평가를 등록할 수 있습니다.",
+                }
+
+            # 거래 당사자(판매자 또는 구매자)인지 확인
+            if user_id != product.user_id and user_id != product.buyer_id:
+                return {
+                    "success": False,
+                    "message": "거래 당사자만 매너 평가를 등록할 수 있습니다.",
+                }
+
+            # 판매자가 작성하는지 구매자가 작성하는지 파악
+            is_seller = user_id == product.user_id
+
+            # 평가 대상자 설정
+            rated_user_id = product.buyer_id if is_seller else product.user_id
+
+            # 매너 평가 유효성 검사
+            from a_user.models import MannerRating
+
+            valid_types = [choice[0] for choice in MannerRating.MANNER_TYPES]
+            invalid_types = [rt for rt in rating_types if rt not in valid_types]
+            if invalid_types:
+                return {
+                    "success": False,
+                    "message": f"유효하지 않은 평가 유형입니다: {', '.join(invalid_types)}",
+                }
+
+            # 이미 등록한 평가 유형 확인
+            existing_types = MannerRating.objects.filter(
+                product_id=product_id,
+                rater_id=user_id,
+            ).values_list("rating_type", flat=True)
+
+            new_types = [rt for rt in rating_types if rt not in existing_types]
+            if not new_types:
+                return {
+                    "success": False,
+                    "message": "이미 모든 유형의 평가를 등록했습니다.",
+                }
+
+            # 새 평가 등록
+            ratings = []
+            for rating_type in new_types:
+                rating = MannerRating.objects.create(
+                    product_id=product_id,
+                    rater_id=user_id,
+                    rated_user_id=rated_user_id,
+                    rating_type=rating_type,
+                )
+                ratings.append(rating)
+
+            # 매너 평가 완료 상태로 업데이트
+            if product.trade_complete_status in [
+                Product.TradeCompleteStatus.COMPLETED,
+                Product.TradeCompleteStatus.REVIEWED,
+            ]:
+                product.trade_complete_status = Product.TradeCompleteStatus.RATED
+                product.save(update_fields=["trade_complete_status", "updated_at"])
+
+            return {
+                "success": True,
+                "message": "매너 평가가 등록되었습니다.",
+                "data": {
+                    "product_id": product_id,
+                    "product_title": product.title,
+                    "rating_types": new_types,
+                    "created_at": timezone.now().isoformat(),
+                },
+            }
+
+        except Product.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 상품입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def get_review(product_id, user_id):
+        """
+        거래 후기 조회 메서드
+        product_id: 거래가 완료된 상품 ID
+        user_id: 후기를 조회하는 사용자 ID
+        """
+        try:
+            product = Product.objects.get(id=product_id)
+
+            # 거래가 완료된 상품인지 확인
+            if product.status != "sold":
+                return {
+                    "success": False,
+                    "message": "거래가 완료된 상품만 후기를 조회할 수 있습니다.",
+                    "data": None,
+                }
+
+            # 해당 상품에 대한 후기 조회
+            # 판매자가 조회하면 구매자가 작성한 후기를, 구매자가 조회하면 판매자가 작성한 후기를 조회
+            if user_id == product.user_id:  # 판매자가 조회 중
+                review = Review.objects.filter(
+                    product=product, reviewer=product.buyer
+                ).first()
+            elif user_id == product.buyer_id:  # 구매자가 조회 중
+                review = Review.objects.filter(
+                    product=product, reviewer=product.user
+                ).first()
+            else:
+                return {
+                    "success": False,
+                    "message": "거래 당사자만 후기를 조회할 수 있습니다.",
+                    "data": None,
+                }
+
+            if not review:
+                return {
+                    "success": False,
+                    "message": "작성된 후기가 없습니다.",
+                    "data": None,
+                }
+
+            return {
+                "success": True,
+                "message": "거래 후기를 조회했습니다.",
+                "data": {
+                    "id": review.id,
+                    "product_id": product.id,
+                    "product_title": product.title,
+                    "reviewer_id": review.reviewer.id,
+                    "reviewer_nickname": review.reviewer.nickname,
+                    "receiver_id": review.receiver.id,
+                    "receiver_nickname": review.receiver.nickname,
+                    "content": review.content,
+                    "created_at": review.created_at.isoformat(),
+                    "updated_at": (
+                        review.updated_at.isoformat() if review.updated_at else None
+                    ),
+                },
+            }
+        except Product.DoesNotExist:
+            return {
+                "success": False,
+                "message": "존재하지 않는 상품입니다.",
+                "data": None,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"후기 조회 중 오류가 발생했습니다: {str(e)}",
+                "data": None,
+            }
+
+    @staticmethod
+    def update_review(review_id, user_id, content):
+        """
+        거래 후기 수정 메서드
+        review_id: 수정할 후기 ID
+        user_id: 후기를 수정하는 사용자 ID
+        content: 수정할 후기 내용
+        """
+        try:
+            review = Review.objects.get(id=review_id)
+
+            # 자신이 작성한 후기인지 확인
+            if review.reviewer_id != user_id:
+                return {
+                    "success": False,
+                    "message": "자신이 작성한 후기만 수정할 수 있습니다.",
+                    "data": None,
+                }
+
+            # 후기 내용 수정
+            review.content = content
+            review.updated_at = timezone.now()
+            review.save()
+
+            return {
+                "success": True,
+                "message": "거래 후기가 수정되었습니다.",
+                "data": {
+                    "id": review.id,
+                    "product_id": review.product.id,
+                    "product_title": review.product.title,
+                    "reviewer_id": review.reviewer.id,
+                    "reviewer_nickname": review.reviewer.nickname,
+                    "receiver_id": review.receiver.id,
+                    "receiver_nickname": review.receiver.nickname,
+                    "content": review.content,
+                    "created_at": review.created_at.isoformat(),
+                    "updated_at": (
+                        review.updated_at.isoformat() if review.updated_at else None
+                    ),
+                },
+            }
+        except Review.DoesNotExist:
+            return {
+                "success": False,
+                "message": "존재하지 않는 후기입니다.",
+                "data": None,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"후기 수정 중 오류가 발생했습니다: {str(e)}",
+                "data": None,
+            }
+
+    @staticmethod
+    def get_manner_ratings(user_id, page=1, page_size=20):
+        """사용자의 매너 평가 목록 조회 메서드"""
+        try:
+            from django.core.paginator import Paginator
+
+            # 해당 사용자가 받은 모든 매너 평가 목록 조회
+            ratings = (
+                MannerRating.objects.filter(rated_user_id=user_id)
+                .select_related("product", "rater", "rated_user")
+                .order_by("-created_at")
+            )
+
+            # 페이지네이션 적용
+            paginator = Paginator(ratings, page_size)
+            current_page = paginator.page(page)
+
+            # 응답 데이터 구성
+            ratings_data = []
+            for rating in current_page.object_list:
+                ratings_data.append(
+                    {
+                        "id": rating.id,
+                        "product_id": rating.product.id,
+                        "product_title": rating.product.title,
+                        "rater_id": rating.rater.id,
+                        "rater_nickname": rating.rater.nickname,
+                        "rated_user_id": rating.rated_user.id,
+                        "rated_user_nickname": rating.rated_user.nickname,
+                        "rating_type": rating.rating_type,
+                        "rating_display": rating.get_rating_type_display(),
+                        "created_at": rating.created_at.isoformat(),
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "매너 평가 목록을 조회했습니다.",
+                "data": ratings_data,
+                "total_count": paginator.count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"매너 평가 목록 조회 중 오류가 발생했습니다: {str(e)}",
+                "data": None,
             }

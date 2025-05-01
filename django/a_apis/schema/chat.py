@@ -1,7 +1,10 @@
 from datetime import datetime
-from typing import List, Optional
+from enum import Enum
+from typing import Dict, List, Optional
 
 from ninja import Field, Schema
+
+from .products import LocationSchema, MannerRatingType
 
 
 class MessageSchema(Schema):
@@ -93,3 +96,72 @@ class SendMessageResponseSchema(Schema):
     success: bool = Field(..., description="요청 성공 여부")
     message: str = Field(..., description="응답 메시지")
     data: Optional[MessageSchema] = Field(None, description="전송된 메시지 정보")
+
+
+class PriceOfferCreateSchema(Schema):
+    """가격 제안 생성 스키마"""
+
+    price: int = Field(..., description="제안 가격")
+    chat_room_id: Optional[int] = Field(None, description="채팅방 ID (선택 사항)")
+
+
+class PriceOfferResponseSchema(Schema):
+    """가격 제안 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[Dict] = Field(None, description="가격 제안 정보")
+
+
+class PriceOfferListSchema(Schema):
+    """가격 제안 목록 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: List[Dict] = Field([], description="가격 제안 목록")
+
+
+class PriceOfferActionSchema(Schema):
+    """가격 제안 수락/거절 스키마"""
+
+    action: str = Field(..., description="수락/거절 여부 (accept 또는 reject)")
+
+
+class TradeCompleteSchema(Schema):
+    """거래 완료 처리 스키마"""
+
+    buyer_id: int = Field(..., description="구매자 ID")
+    final_price: Optional[int] = Field(None, description="최종 거래 가격 (선택 사항)")
+
+
+class ReviewCreateSchema(Schema):
+    """거래 후기 작성 스키마"""
+
+    content: str = Field(..., description="후기 내용")
+
+
+class ReviewResponseSchema(Schema):
+    """거래 후기 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[Dict] = Field(None, description="후기 정보")
+
+
+class MannerRatingCreateSchema(Schema):
+    """매너 평가 스키마"""
+
+    rating_types: List[MannerRatingType] = Field(
+        ..., description="평가 유형 목록", example=["time", "kind", "accurate"]
+    )
+
+    class Config:
+        schema_extra = {"example": {"rating_types": ["time", "response", "kind"]}}
+
+
+class MannerRatingResponseSchema(Schema):
+    """매너 평가 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[Dict] = Field(None, description="매너 평가 정보")

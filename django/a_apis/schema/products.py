@@ -1,4 +1,6 @@
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Literal, Optional
 
 from ninja import Field, Schema
 from pydantic import validator
@@ -195,3 +197,170 @@ class ProductSearchSchema(Schema):
     )
     min_price: Optional[int] = Field(None, description="최소 가격")
     max_price: Optional[int] = Field(None, description="최대 가격")
+
+
+# 가격 제안 관련 스키마
+class PriceOfferSchema(Schema):
+    """가격 제안 스키마"""
+
+    price: int = Field(..., description="제안 가격")
+
+    @validator("price")
+    def validate_price(cls, v):
+        if v <= 0:
+            raise ValueError("제안 가격은 0보다 커야 합니다.")
+        return v
+
+
+class PriceOfferDetailSchema(Schema):
+    """가격 제안 상세 스키마"""
+
+    id: int = Field(..., description="가격 제안 ID")
+    product_id: int = Field(..., description="상품 ID")
+    product_title: str = Field(..., description="상품 제목")
+    user_id: int = Field(..., description="제안자 ID")
+    user_nickname: str = Field(..., description="제안자 닉네임")
+    price: int = Field(..., description="제안 가격")
+    status: str = Field(
+        ..., description="상태 (pending: 대기중, accepted: 수락됨, rejected: 거절됨)"
+    )
+    created_at: str = Field(..., description="제안 일시")
+
+
+class PriceOfferResponseSchema(Schema):
+    """가격 제안 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[PriceOfferDetailSchema] = Field(None, description="가격 제안 정보")
+
+
+class PriceOfferActionSchema(Schema):
+    """가격 제안 응답 액션 스키마"""
+
+    action: str = Field(..., description="액션 (accept: 수락, reject: 거절)")
+
+    @validator("action")
+    def validate_action(cls, v):
+        if v not in ["accept", "reject"]:
+            raise ValueError("액션은 'accept' 또는 'reject'만 가능합니다.")
+        return v
+
+
+# 거래 완료 관련 스키마
+class TradeCompleteSchema(Schema):
+    """거래 완료 스키마"""
+
+    buyer_id: int = Field(..., description="구매자 ID")
+    final_price: Optional[int] = Field(
+        None, description="최종 거래 금액 (입력하지 않으면 원래 가격으로 적용)"
+    )
+
+    @validator("final_price")
+    def validate_final_price(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError("최종 가격은 0보다 커야 합니다.")
+        return v
+
+
+# 거래 후기 관련 스키마
+class ReviewSchema(Schema):
+    """거래 후기 스키마"""
+
+    content: str = Field(..., description="후기 내용")
+
+    @validator("content")
+    def validate_content(cls, v):
+        if not v.strip():
+            raise ValueError("후기 내용을 입력해주세요.")
+        if len(v) > 500:
+            raise ValueError("후기 내용은 500자 이내로 입력해주세요.")
+        return v
+
+
+class ReviewDetailSchema(Schema):
+    """거래 후기 상세 스키마"""
+
+    id: int = Field(..., description="후기 ID")
+    product_id: int = Field(..., description="상품 ID")
+    product_title: str = Field(..., description="상품 제목")
+    reviewer_id: int = Field(..., description="작성자 ID")
+    receiver_id: int = Field(..., description="수신자 ID")
+    content: str = Field(..., description="후기 내용")
+    created_at: str = Field(..., description="작성 일시")
+
+
+class ReviewResponseSchema(Schema):
+    """거래 후기 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[ReviewDetailSchema] = Field(None, description="거래 후기 정보")
+
+
+# 매너 평가 타입을 위한 Enum 클래스 추가
+class MannerRatingType(str, Enum):
+    TIME = "time"
+    RESPONSE = "response"
+    KIND = "kind"
+    ACCURATE = "accurate"
+    NEGOTIABLE = "negotiable"
+    BAD_TIME = "bad_time"
+    BAD_RESPONSE = "bad_response"
+    BAD_MANNER = "bad_manner"
+    BAD_ACCURACY = "bad_accuracy"
+    BAD_PRICE = "bad_price"
+
+
+# 매너 평가 관련 스키마
+class MannerRatingSchema(Schema):
+    """매너평가 스키마"""
+
+    rating_types: List[MannerRatingType] = Field(
+        ..., description="평가 유형 목록", example=["time", "kind", "accurate"]
+    )
+
+    class Config:
+        schema_extra = {"example": {"rating_types": ["time", "response", "kind"]}}
+
+    @validator("rating_types")
+    def validate_rating_types(cls, v):
+        if not v:
+            raise ValueError("최소 하나 이상의 평가 유형을 선택해주세요.")
+        return v
+
+
+class MannerRatingDetailSchema(Schema):
+    """매너평가 상세 스키마"""
+
+    product_id: int = Field(..., description="상품 ID")
+    product_title: str = Field(..., description="상품 제목")
+    rating_types: List[str] = Field(..., description="평가 유형 목록")
+    created_at: str = Field(..., description="평가 일시")
+
+
+class MannerRatingResponseSchema(Schema):
+    """매너평가 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[MannerRatingDetailSchema] = Field(None, description="매너평가 정보")
+
+
+class ProductInterestSchema(Schema):
+    """상품 관심 등록/해제 요청 스키마"""
+
+    # 추가 필드가 필요하다면 여기에 정의할 수 있습니다.
+    # 현재는 빈 스키마로 정의하되, 추후 확장 가능성을 위해 클래스로 만듭니다.
+
+    class Config:
+        schema_extra = {"example": {}}  # 빈 예제로 시작
+
+
+class PriceOfferListRequestSchema(Schema):
+    """가격 제안 목록 요청 스키마"""
+
+    # 향후 필터링 등의 옵션이 추가될 수 있으므로 스키마로 정의합니다.
+
+    class Config:
+        schema_extra = {"example": {}}

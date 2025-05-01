@@ -2,10 +2,22 @@ from typing import List, Optional
 
 from a_apis.auth.bearer import AuthBearer
 from a_apis.models.product import Product
+from a_apis.schema.chat import (
+    MannerRatingCreateSchema,
+    MannerRatingResponseSchema,
+    PriceOfferActionSchema,
+    PriceOfferCreateSchema,
+    PriceOfferListSchema,
+    PriceOfferResponseSchema,
+    ReviewCreateSchema,
+    ReviewResponseSchema,
+    TradeCompleteSchema,
+)
 from a_apis.schema.products import (
     CategoryListResponseSchema,
     CategorySearchResponseSchema,
     ProductCreateSchema,
+    ProductInterestSchema,
     ProductListResponseSchema,
     ProductResponseSchema,
     ProductStatusUpdateSchema,
@@ -168,8 +180,8 @@ def update_product(
 ):
     """상품 정보 수정 API
 
-    상품 정보와 이미지를 수정할 수 있습니다.
-    이미지를 전송하면 기존 이미지를 모두 삭제하고 새로운 이미지로 대체합니다.
+    상품 정보 / 이미지 수정 가능
+    이미지를 전송하면 기존 이미지를 모두 삭제하고 새로운 이미지로 대체 가능.
     """
     # 상품 소유자 확인
     product = get_object_or_404(Product, id=product_id)
@@ -196,7 +208,7 @@ def update_product(
 def update_product_status(request, product_id: int, data: ProductStatusUpdateSchema):
     """상품 상태 변경 API
 
-    상품 상태를 변경합니다. (판매중/예약중/판매완료)
+    상품 상태를 변경 (판매중/예약중/판매완료)
     """
     # 상품 소유자 확인
     product = get_object_or_404(Product, id=product_id)
@@ -212,8 +224,8 @@ def update_product_status(request, product_id: int, data: ProductStatusUpdateSch
 def refresh_product(request, product_id: int):
     """상품 끌어올리기 API
 
-    상품을 끌어올려 상품 목록에서 상단에 노출되게 합니다.
-    하루에 최대 3회까지 가능합니다.
+    상품을 끌어올려 상품 목록에서 상단에 노출
+    하루에 최대 3회까지 가능
     """
     # 상품 소유자 확인
     product = get_object_or_404(Product, id=product_id)
@@ -252,4 +264,153 @@ def toggle_interest(request, product_id: int):
     """
     return ProductService.toggle_interest_product(
         product_id=product_id, user_id=request.user.id
+    )
+
+
+@router.post("/{product_id}/price-offer", response=PriceOfferResponseSchema)
+def create_price_offer(request, product_id: int, data: PriceOfferCreateSchema):
+    """
+    가격 제안 API
+
+    판매자가 가격 제안을 허용한 상품에 대해 구매 희망자가 가격 제안하는 기능
+
+    경로 파라미터:
+    - product_id: 가격 제안할 상품 ID
+
+    요청 데이터:
+    - price: 제안 가격
+    - chat_room_id: (선택사항) 채팅방 ID
+
+    응답:
+    - 성공: 가격 제안 정보 반환
+    - 실패: 오류 메시지
+    """
+    return ProductService.create_price_offer(
+        product_id=product_id,
+        user_id=request.user.id,
+        price=data.price,
+        chat_room_id=data.chat_room_id,
+    )
+
+
+@router.get("/{product_id}/price-offers", response=PriceOfferListSchema)
+def get_price_offers(request, product_id: int):
+    """
+    가격 제안 목록 조회 API
+
+    상품에 대한 가격 제안 목록을 조회 (판매자만 조회 가능)
+
+    경로 파라미터:
+    - product_id: 상품 ID
+
+    응답:
+    - 성공: 가격 제안 목록 반환
+    - 실패: 오류 메시지
+    """
+    return ProductService.get_price_offers(
+        product_id=product_id, user_id=request.user.id
+    )
+
+
+@router.post("/price-offers/{offer_id}/respond", response=PriceOfferResponseSchema)
+def respond_to_price_offer(request, offer_id: int, data: PriceOfferActionSchema):
+    """
+    가격 제안 수락/거절 API
+
+    구매자의 가격 제안에 대해 판매자가 수락 또는 거절 가능
+
+    경로 파라미터:
+    - offer_id: 가격 제안 ID
+
+    요청 데이터:
+    - action: 'accept' 또는 'reject'
+
+    응답:
+    - 성공: 수락/거절된 가격 제안 정보 반환
+    - 실패: 오류 메시지
+    """
+    return ProductService.respond_to_price_offer(
+        offer_id=offer_id, user_id=request.user.id, action=data.action
+    )
+
+
+@router.post("/{product_id}/complete", response=ProductResponseSchema)
+def complete_trade(request, product_id: int, data: TradeCompleteSchema):
+    """
+    거래 완료 처리 API
+
+    상품 거래가 완료되었음을 기록 (판매자만 가능)
+
+    경로 파라미터:
+    - product_id: 상품 ID
+
+    요청 데이터:
+    - buyer_id: 구매자 ID
+    - final_price: (선택사항) 최종 거래 가격
+
+    응답:
+    - 성공: 거래 완료된 상품 정보 반환
+    - 실패: 오류 메시지
+    """
+    return ProductService.complete_trade(
+        product_id=product_id,
+        user_id=request.user.id,
+        buyer_id=data.buyer_id,
+        final_price=data.final_price,
+    )
+
+
+@router.post("/{product_id}/review", response=ReviewResponseSchema)
+def create_review(request, product_id: int, data: ReviewCreateSchema):
+    """
+    거래 후기 작성 API
+
+    거래 완료된 상품에 대한 후기 작성 (거래 당사자만 가능)
+
+    경로 파라미터:
+    - product_id: 상품 ID
+
+    요청 데이터:
+    - content: 후기 내용
+
+    응답:
+    - 성공: 작성된 후기 정보 반환
+    - 실패: 오류 메시지
+    """
+    return ProductService.create_review(
+        product_id=product_id, user_id=request.user.id, content=data.content
+    )
+
+
+@router.post("/{product_id}/manner-rating", response=MannerRatingResponseSchema)
+def create_manner_rating(request, product_id: int, data: MannerRatingCreateSchema):
+    """
+    매너 평가 등록 API
+
+    거래 완료된 상품에 대한 상대방의 매너를 평가 (거래 당사자만 가능)
+
+    경로 파라미터:
+    - product_id: 상품 ID
+
+    요청 데이터:
+    - rating_types: 평가 유형 목록 (아래 값 중 하나 이상 선택)
+      * 긍정적 평가
+        - time: 시간 약속을 잘 지켜요
+        - response: 응답이 빨라요
+        - kind: 친절하고 매너가 좋아요
+        - accurate: 상품 상태가 설명과 일치해요
+        - negotiable: 가격 제안에 대해 긍정적이에요
+      * 부정적 평가
+        - bad_time: 약속시간을 안 지켜요
+        - bad_response: 응답이 느려요
+        - bad_manner: 불친절해요
+        - bad_accuracy: 상품 상태가 설명과 달라요
+        - bad_price: 가격 흥정이 너무 심해요
+
+    응답:
+    - 성공: 등록된 매너 평가 정보 반환
+    - 실패: 오류 메시지
+    """
+    return ProductService.create_manner_rating(
+        product_id=product_id, user_id=request.user.id, rating_types=data.rating_types
     )

@@ -203,3 +203,333 @@ class UserService:
             }
         except Exception as e:
             return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def update_user_profile(request, data, profile_image=None):
+        """회원정보 수정 서비스
+
+        Args:
+            request: HTTP 요청 객체
+            data: UpdateProfileSchema 데이터 (nickname, phone_number 등)
+            profile_image: 업로드된 프로필 이미지 파일 (옵션)
+
+        Returns:
+            dict: 처리 결과 메시지
+        """
+        try:
+            # 인증된 사용자 확인 - request.auth(토큰) 또는 request.user(객체) 처리
+            user_obj = None
+
+            # request.user가 User 객체인 경우 (테스트용)
+            if hasattr(request, "user") and isinstance(request.user, User):
+                user_obj = request.user
+            # request.auth가 토큰인 경우 (실제 API 호출)
+            elif hasattr(request, "auth") and request.auth:
+                from rest_framework_simplejwt.tokens import AccessToken
+
+                access_token = AccessToken(request.auth)
+                user_id = access_token["user_id"]
+                user_obj = User.objects.get(id=user_id)
+
+            if not user_obj:
+                return {"success": False, "message": "인증되지 않은 사용자입니다."}
+
+            updated_fields = []
+
+            # 닉네임 변경
+            if data.nickname:
+                user_obj.nickname = data.nickname
+                updated_fields.append("nickname")
+
+            # 휴대폰 번호 변경
+            if data.phone_number:
+                user_obj.phone_number = data.phone_number
+                updated_fields.append("phone_number")
+
+            # 프로필 이미지 처리
+            from a_apis.models.files import File
+            from a_apis.service.files import FileService
+
+            # 필드명 수정: profile_image -> profile_img
+            old_profile_img = getattr(user_obj, "profile_img", None)
+
+            # 프로필 이미지 처리 로직
+            if data.remove_profile_image:
+                # 프로필 이미지 삭제 요청
+                if old_profile_img:
+                    FileService.delete_file(old_profile_img)
+                    user_obj.profile_img = None
+                    updated_fields.append("profile_img")
+            elif profile_image:
+                # 새 이미지로 교체 요청
+                if old_profile_img:
+                    FileService.delete_file(old_profile_img)
+
+                # 새 프로필 이미지 업로드
+                file_obj = FileService.upload_file(profile_image, file_type="profile")
+                user_obj.profile_img = file_obj
+                updated_fields.append("profile_img")
+
+            # 변경 사항이 있으면 저장
+            if updated_fields:
+                user_obj.save(update_fields=updated_fields + ["updated_at"])
+
+                # 업데이트된 필드 표시
+                updated_str = ", ".join([field for field in updated_fields])
+                return {
+                    "success": True,
+                    "message": f"회원정보가 수정되었습니다. (변경: {updated_str})",
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "변경할 정보가 없습니다.",
+                }
+
+        except User.DoesNotExist:
+            return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"회원정보 수정 중 오류가 발생했습니다: {str(e)}",
+            }
+
+    @staticmethod
+    def change_user_password(request, data):
+        """비밀번호 변경 서비스
+
+        Args:
+            request: HTTP 요청 객체
+            data: PasswordChangeSchema 데이터 (current_password, new_password 포함)
+
+        Returns:
+            dict: 처리 결과 메시지
+        """
+        try:
+            # 인증된 사용자 확인
+            user = request.auth
+            if not user:
+                return {"success": False, "message": "인증되지 않은 사용자입니다."}
+
+            from rest_framework_simplejwt.tokens import AccessToken
+
+            access_token = AccessToken(user)
+            user_id = access_token["user_id"]
+
+            user = User.objects.get(id=user_id)
+
+            # 현재 비밀번호 검증
+            if not user.check_password(data.current_password):
+                return {
+                    "success": False,
+                    "message": "현재 비밀번호가 일치하지 않습니다.",
+                }
+
+            # 새 비밀번호가 현재 비밀번호와 같은지 확인
+            if data.current_password == data.new_password:
+                return {
+                    "success": False,
+                    "message": "새 비밀번호는 현재 비밀번호와 달라야 합니다.",
+                }
+
+            # 새 비밀번호 설정
+            user.set_password(data.new_password)
+            user.save(update_fields=["password", "updated_at"])
+
+            return {
+                "success": True,
+                "message": "비밀번호가 성공적으로 변경되었습니다.",
+            }
+
+        except User.DoesNotExist:
+            return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"비밀번호 변경 중 오류가 발생했습니다: {str(e)}",
+            }
+
+    @staticmethod
+    def get_received_reviews(request=None, user_id=None, page=1, page_size=10):
+        """
+        사용자가 받은 거래 후기 목록을 조회합니다.
+        request 또는 user_id 중 하나는 반드시 제공되어야 합니다.
+        """
+        try:
+            from a_user.models import Review, User
+
+            from django.core.paginator import Paginator
+
+            # 사용자 ID 확인 (request에서 추출 또는 직접 전달)
+            if user_id is None and request is not None:
+                if hasattr(request, "user") and isinstance(request.user, User):
+                    user_id = request.user.id
+                elif hasattr(request, "auth") and request.auth:
+                    from rest_framework_simplejwt.tokens import AccessToken
+
+                    access_token = AccessToken(request.auth)
+                    user_id = access_token["user_id"]
+
+            if user_id is None:
+                return {"success": False, "message": "사용자 ID가 제공되지 않았습니다."}
+
+            # 사용자 확인
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return {"success": False, "message": "존재하지 않는 사용자입니다."}
+
+            # 해당 사용자가 받은 모든 거래 후기 조회
+            # receiver가 현재 사용자인 모든 리뷰
+            reviews = (
+                Review.objects.filter(receiver=user)
+                .select_related("product", "reviewer", "receiver")
+                .order_by("-created_at")
+            )
+
+            # 페이지네이션 적용
+            paginator = Paginator(reviews, page_size)
+            if page > paginator.num_pages:
+                page = 1
+            current_page = paginator.page(page)
+
+            # 응답 데이터 구성
+            reviews_data = []
+            for review in current_page:
+                # 리뷰 작성자의 프로필 이미지 URL 가져오기
+                profile_img_url = None
+                if review.reviewer.profile_img:
+                    profile_img_url = review.reviewer.profile_img.url
+
+                # 리뷰 작성자의 인증된 지역 가져오기
+                location_name = None
+                certification = review.reviewer.region_certifications.first()
+                if certification:
+                    location_name = (
+                        certification.region.name if certification.region else None
+                    )
+
+                reviews_data.append(
+                    {
+                        "id": review.id,
+                        "product_id": review.product.id,
+                        "product_title": review.product.title,
+                        "content": review.content,
+                        "created_at": review.created_at.isoformat(),
+                        "reviewer": {
+                            "id": review.reviewer.id,
+                            "nickname": review.reviewer.nickname,
+                            "profile_img_url": profile_img_url,
+                            "location": location_name,
+                        },
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "거래 후기 목록을 조회했습니다.",
+                "data": reviews_data,
+                "total_count": paginator.count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"거래 후기 목록 조회 중 오류가 발생했습니다: {str(e)}",
+                "data": [],
+            }
+
+    @staticmethod
+    def get_received_manner_ratings(request=None, user_id=None, page=1, page_size=10):
+        """
+        사용자가 받은 매너 평가 목록을 조회합니다.
+        request 또는 user_id 중 하나는 반드시 제공되어야 합니다.
+        """
+        try:
+            from a_apis.models.trade import MannerRating
+            from a_user.models import User
+
+            from django.core.paginator import Paginator
+
+            # 사용자 ID 확인 (request에서 추출 또는 직접 전달)
+            if user_id is None and request is not None:
+                if hasattr(request, "user") and isinstance(request.user, User):
+                    user_id = request.user.id
+                elif hasattr(request, "auth") and request.auth:
+                    from rest_framework_simplejwt.tokens import AccessToken
+
+                    access_token = AccessToken(request.auth)
+                    user_id = access_token["user_id"]
+
+            if user_id is None:
+                return {"success": False, "message": "사용자 ID가 제공되지 않았습니다."}
+
+            # 사용자 확인
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return {"success": False, "message": "존재하지 않는 사용자입니다."}
+
+            # 해당 사용자가 받은 모든 매너 평가 조회
+            ratings = (
+                MannerRating.objects.filter(rated_user=user)
+                .select_related("product", "rater", "rated_user")
+                .order_by("-created_at")
+            )
+
+            # 페이지네이션 적용
+            paginator = Paginator(ratings, page_size)
+            if page > paginator.num_pages:
+                page = 1
+            current_page = paginator.page(page)
+
+            # 응답 데이터 구성
+            ratings_data = []
+            for rating in current_page:
+                # 평가자의 프로필 이미지 URL 가져오기
+                profile_img_url = None
+                if rating.rater.profile_img:
+                    profile_img_url = rating.rater.profile_img.url
+
+                # 평가자의 인증된 지역 가져오기
+                location_name = None
+                certification = rating.rater.region_certifications.first()
+                if certification:
+                    location_name = (
+                        certification.region.name if certification.region else None
+                    )
+
+                ratings_data.append(
+                    {
+                        "id": rating.id,
+                        "product_id": rating.product.id,
+                        "product_title": rating.product.title,
+                        "rating_type": rating.rating_type,
+                        "rating_display": rating.get_rating_type_display(),
+                        "created_at": rating.created_at.isoformat(),
+                        "rater": {
+                            "id": rating.rater.id,
+                            "nickname": rating.rater.nickname,
+                            "profile_img_url": profile_img_url,
+                            "location": location_name,
+                        },
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "매너 평가 목록을 조회했습니다.",
+                "data": ratings_data,
+                "total_count": paginator.count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"매너 평가 목록 조회 중 오류가 발생했습니다: {str(e)}",
+                "data": [],
+            }

@@ -1,9 +1,12 @@
 import json
+import tempfile
 from datetime import timedelta
-from unittest.mock import patch
+from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 from a_apis.models.email_verification import EmailVerification
 from a_user.models import User
+from PIL import Image
 
 from django.core import mail
 from django.test import Client, TestCase
@@ -172,3 +175,172 @@ class UserLoginTest(TestCase):
         self.assertTrue(
             User.objects.filter(email=self.test_user_data["email"]).exists()
         )
+
+
+class UserProfileUpdateTest(TestCase):
+    """사용자 프로필 업데이트 테스트"""
+
+    def setUp(self):
+        """각 테스트 실행 전 초기화"""
+        self.client = Client()
+
+        # 테스트용 사용자 생성
+        self.user = User.objects.create_user(
+            username="test@example.com",
+            email="test@example.com",
+            password="testPassword123!",
+            nickname="원래닉네임",
+            phone_number="01012345678",
+            is_email_verified=True,
+        )
+
+        # Mock Request 객체 준비 - 실제 토큰 대신 직접 사용자 객체를 넣음
+        class MockRequest:
+            def __init__(self, user):
+                self.user = user  # auth 대신 user 속성 사용
+
+        self.mock_request = MockRequest(self.user)
+
+        # 이미지 파일 생성 함수
+        self.create_test_image = lambda: self._create_image()
+
+    def _create_image(self):
+        """테스트용 이미지 파일 생성"""
+        file = BytesIO()
+        image = Image.new("RGB", size=(100, 100), color=(155, 0, 0))
+        image.save(file, "jpeg")
+        file.name = "test.jpg"
+        file.seek(0)
+        return file
+
+    @patch("a_apis.service.files.FileService.upload_file")
+    @patch("a_apis.service.files.FileService.delete_file")
+    def test_update_nickname(self, mock_delete_file, mock_upload_file):
+        """닉네임 변경 테스트"""
+        from a_apis.schema.users import UpdateProfileSchema
+        from a_apis.service.users import UserService
+
+        # 스키마와 서비스 직접 호출
+        data = UpdateProfileSchema(nickname="변경된닉네임")
+        result = UserService.update_user_profile(self.mock_request, data)
+
+        # 응답 검증
+        self.assertTrue(result["success"])
+        self.assertIn("nickname", result["message"])
+
+        # DB에 변경 사항 반영 확인
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.nickname, "변경된닉네임")
+
+    @patch("a_apis.service.files.FileService.upload_file")
+    @patch("a_apis.service.files.FileService.delete_file")
+    def test_update_profile_image(self, mock_delete_file, mock_upload_file):
+        """프로필 이미지 업로드 테스트"""
+        from a_apis.models.files import File
+        from a_apis.schema.users import UpdateProfileSchema
+        from a_apis.service.users import UserService
+
+        # File 객체 생성
+        test_file = File.objects.create(
+            file="uploaded_test_path.jpg", size=1024, type="jpg"
+        )
+
+        # FileService.upload_file가 실제 File 객체를 반환하도록 설정
+        mock_upload_file.return_value = test_file
+
+        # 이미지 파일 생성
+        test_image = self.create_test_image()
+
+        # 스키마와 서비스 직접 호출
+        data = UpdateProfileSchema(nickname="이미지테스트")
+        result = UserService.update_user_profile(self.mock_request, data, test_image)
+
+        # 디버깅 정보 출력
+        print(f"\nUpdate Profile Image Test - Result: {result}")
+
+        # 응답 검증
+        self.assertTrue(
+            result["success"],
+            f"Failed with message: {result.get('message', 'No message')}",
+        )
+        self.assertIn("profile_img", result["message"])
+
+        # 모킹 함수 호출 확인
+        mock_upload_file.assert_called_once()
+        self.assertEqual(mock_upload_file.call_args[1]["file_type"], "profile")
+
+        # DB에 변경 사항 반영 확인
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile_img, test_file)
+
+    @patch("a_apis.service.files.FileService.upload_file")
+    @patch("a_apis.service.files.FileService.delete_file")
+    def test_remove_profile_image(self, mock_delete_file, mock_upload_file):
+        """프로필 이미지 삭제 테스트"""
+        from a_apis.models.files import File
+        from a_apis.schema.users import UpdateProfileSchema
+        from a_apis.service.users import UserService
+
+        # 먼저 사용자에게 프로필 이미지 설정
+        test_file = File.objects.create(file="test_path.jpg", size=1024, type="jpg")
+        self.user.profile_img = test_file  # profile_image -> profile_img
+        self.user.save()
+
+        # 스키마와 서비스 직접 호출
+        data = UpdateProfileSchema(remove_profile_image=True)
+        result = UserService.update_user_profile(self.mock_request, data)
+
+        # 디버깅 정보 출력
+        print(f"\nRemove Profile Image Test - Result: {result}")
+
+        # 응답 검증
+        self.assertTrue(
+            result["success"],
+            f"Failed with message: {result.get('message', 'No message')}",
+        )
+        self.assertIn("profile_img", result["message"])  # profile_image -> profile_img
+
+        # 모킹 함수 호출 확인
+        mock_delete_file.assert_called_once_with(test_file)
+
+        # DB에 변경 사항 반영 확인
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.profile_img)  # profile_image -> profile_img
+
+    @patch("a_apis.service.files.FileService.upload_file")
+    @patch("a_apis.service.files.FileService.delete_file")
+    def test_profile_image_priority(self, mock_delete_file, mock_upload_file):
+        """프로필 이미지 삭제와 업로드 동시 요청 시 삭제 우선 처리 테스트"""
+        from a_apis.models.files import File
+        from a_apis.schema.users import UpdateProfileSchema
+        from a_apis.service.users import UserService
+
+        # 먼저 사용자에게 프로필 이미지 설정
+        test_file = File.objects.create(file="test_path.jpg", size=1024, type="jpg")
+        self.user.profile_img = test_file  # profile_image -> profile_img
+        self.user.save()
+
+        # 이미지 파일 생성
+        test_image = self.create_test_image()
+
+        # 스키마와 서비스 직접 호출
+        data = UpdateProfileSchema(remove_profile_image=True)
+        result = UserService.update_user_profile(self.mock_request, data, test_image)
+
+        # 디버깅 정보 출력
+        print(f"\nProfile Image Priority Test - Result: {result}")
+
+        # 응답 검증
+        self.assertTrue(
+            result["success"],
+            f"Failed with message: {result.get('message', 'No message')}",
+        )
+        self.assertIn("profile_img", result["message"])  # profile_image -> profile_img
+
+        # 모킹 함수 호출 확인 - delete_file은 호출되어야 하고, upload_file은 호출되지 않아야 함
+        mock_delete_file.assert_called_once_with(test_file)
+        mock_upload_file.assert_not_called()
+
+        # DB에 변경 사항 반영 확인 - 프로필 이미지가 None이어야 함
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.profile_img)  # profile_image -> profile_img

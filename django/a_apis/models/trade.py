@@ -15,13 +15,13 @@ class PriceOffer(CommonModel):
     product = models.ForeignKey(
         "a_apis.Product",
         on_delete=models.CASCADE,
-        related_name="price_offers",
+        related_name="apis_price_offers",
         verbose_name="상품",
     )
     user = models.ForeignKey(
         "a_user.User",
         on_delete=models.CASCADE,
-        related_name="price_offers",
+        related_name="apis_price_offers",
         verbose_name="제안자",
     )
     price = models.PositiveIntegerField(verbose_name="제안 가격")
@@ -36,13 +36,13 @@ class PriceOffer(CommonModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="price_offers",
+        related_name="apis_price_offers",
         verbose_name="채팅방",
     )
     responded_at = models.DateTimeField(null=True, blank=True, verbose_name="응답 일시")
 
     class Meta:
-        db_table = "price_offers"
+        db_table = "apis_price_offers"
         verbose_name = "가격 제안"
         verbose_name_plural = "가격 제안 목록"
         ordering = ["-created_at"]
@@ -124,19 +124,19 @@ class TradeReview(CommonModel):
     writer = models.ForeignKey(
         "a_user.User",
         on_delete=models.CASCADE,
-        related_name="written_reviews",
+        related_name="apis_written_reviews",
         verbose_name="작성자",
     )
     receiver = models.ForeignKey(
         "a_user.User",
         on_delete=models.CASCADE,
-        related_name="received_reviews",
+        related_name="apis_received_reviews",
         verbose_name="대상자",
     )
     content = models.TextField(verbose_name="내용")
 
     class Meta:
-        db_table = "trade_reviews"
+        db_table = "apis_trade_reviews"
         verbose_name = "거래 후기"
         verbose_name_plural = "거래 후기 목록"
         ordering = ["-created_at"]
@@ -180,13 +180,13 @@ class MannerRating(CommonModel):
     rater = models.ForeignKey(
         "a_user.User",
         on_delete=models.CASCADE,
-        related_name="given_ratings",
+        related_name="apis_given_ratings",
         verbose_name="평가자",
     )
     rated_user = models.ForeignKey(
         "a_user.User",
         on_delete=models.CASCADE,
-        related_name="received_ratings",
+        related_name="apis_received_ratings",
         verbose_name="평가 대상자",
     )
     rating_type = models.CharField(
@@ -198,7 +198,7 @@ class MannerRating(CommonModel):
     comment = models.TextField(blank=True, null=True, verbose_name="추가 코멘트")
 
     class Meta:
-        db_table = "manner_ratings"
+        db_table = "apis_manner_ratings"
         verbose_name = "매너 평가"
         verbose_name_plural = "매너 평가 목록"
         ordering = ["-created_at"]
@@ -220,3 +220,76 @@ class MannerRating(CommonModel):
             # 매너온도 업데이트 (긍정적이면 +0.5, 부정적이면 -0.5)
             change = 0.5 if self.rating_type == self.RatingType.POSITIVE else -0.5
             UserService.update_manner_temperature(self.rated_user.id, change)
+
+
+class TradeAppointment(CommonModel):
+    """거래약속 모델"""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "대기중"
+        CONFIRMED = "confirmed", "확정됨"
+        CANCELED = "canceled", "취소됨"
+        COMPLETED = "completed", "완료됨"
+
+    product = models.ForeignKey(
+        "a_apis.Product",
+        on_delete=models.CASCADE,
+        related_name="appointments",
+        verbose_name="상품",
+    )
+    seller = models.ForeignKey(
+        "a_user.User",
+        on_delete=models.CASCADE,
+        related_name="seller_appointments",
+        verbose_name="판매자",
+    )
+    buyer = models.ForeignKey(
+        "a_user.User",
+        on_delete=models.CASCADE,
+        related_name="buyer_appointments",
+        verbose_name="구매자",
+    )
+    appointment_date = models.DateTimeField(verbose_name="약속 날짜 및 시간")
+    location = models.PointField(srid=4326, verbose_name="약속 장소")
+    location_description = models.CharField(
+        max_length=200, verbose_name="약속 장소 설명"
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name="약속 상태",
+    )
+    chat_room = models.ForeignKey(
+        "a_apis.ChatRoom",
+        on_delete=models.CASCADE,
+        related_name="appointments",
+        verbose_name="채팅방",
+    )
+
+    class Meta:
+        db_table = "trade_appointments"
+        verbose_name = "거래 약속"
+        verbose_name_plural = "거래 약속 목록"
+        ordering = ["-appointment_date"]
+
+    def __str__(self):
+        return f"{self.product.title} - {self.appointment_date.strftime('%Y-%m-%d %H:%M')} ({self.get_status_display()})"
+
+    def confirm(self):
+        """약속 확정 처리"""
+        self.status = self.Status.CONFIRMED
+        self.save(update_fields=["status", "updated_at"])
+        return self
+
+    def cancel(self):
+        """약속 취소 처리"""
+        self.status = self.Status.CANCELED
+        self.save(update_fields=["status", "updated_at"])
+        return self
+
+    def complete(self):
+        """약속 완료 처리"""
+        self.status = self.Status.COMPLETED
+        self.save(update_fields=["status", "updated_at"])
+        return self

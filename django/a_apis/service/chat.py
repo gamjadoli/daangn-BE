@@ -8,7 +8,9 @@ from a_apis.models import (
     Product,
     ProductImage,
 )
+from a_apis.models.trade import TradeAppointment
 
+from django.contrib.gis.geos import Point
 from django.db.models import Count, F, Max, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce
 
@@ -400,5 +402,344 @@ class ChatService:
             return {
                 "success": False,
                 "message": f"메시지 전송 실패: {str(e)}",
+                "data": None,
+            }
+
+    @staticmethod
+    def create_appointment(
+        chat_room_id: int,
+        user_id: int,
+        appointment_date,
+        location_lat: float,
+        location_lng: float,
+        location_desc: str,
+    ) -> dict:
+        """거래약속 생성 서비스"""
+        try:
+            # 채팅방 존재 및 권한 확인
+            chat_room = ChatRoom.objects.select_related("product").get(id=chat_room_id)
+
+            # 채팅방 참여자 확인
+            if not ChatRoomParticipant.objects.filter(
+                chat_room_id=chat_room_id, user_id=user_id, is_active=True
+            ).exists():
+                return {
+                    "success": False,
+                    "message": "채팅방에 접근할 권한이 없습니다.",
+                    "data": None,
+                }
+
+            # 판매자와 구매자 구분
+            product = chat_room.product
+            seller_id = product.user_id
+
+            # 판매자 정보 가져오기
+            from a_user.models import User
+
+            seller = User.objects.get(id=seller_id)
+
+            # 구매자 찾기 (판매자가 아닌 사용자)
+            buyer = None
+            buyer_participant = (
+                ChatRoomParticipant.objects.filter(chat_room=chat_room)
+                .exclude(user_id=seller_id)
+                .select_related("user")
+                .first()
+            )
+
+            if buyer_participant:
+                buyer = buyer_participant.user
+                buyer_id = buyer.id
+            else:
+                return {
+                    "success": False,
+                    "message": "구매자 정보를 찾을 수 없습니다.",
+                    "data": None,
+                }
+
+            # 약속 장소 생성
+            appointment_location = Point(location_lng, location_lat, srid=4326)
+
+            # 기존 약속이 있는지 확인하고 없으면 새로 생성
+            appointment, created = TradeAppointment.objects.update_or_create(
+                chat_room=chat_room,
+                product=product,
+                defaults={
+                    "seller_id": seller_id,
+                    "buyer_id": buyer_id,
+                    "appointment_date": appointment_date,
+                    "location": appointment_location,
+                    "location_description": location_desc,
+                    "status": TradeAppointment.Status.PENDING,
+                },
+            )
+
+            # 상품 상태를 예약중으로 변경
+            if created and product.status == Product.Status.NEW:
+                product.status = Product.Status.RESERVED
+                product.save(update_fields=["status", "updated_at"])
+
+            # 약속 생성 메시지 전송
+            appointment_time = appointment.appointment_date.strftime(
+                "%Y년 %m월 %d일 %H시 %M분"
+            )
+            system_message = f"[시스템] 거래약속이 설정되었습니다. \n날짜: {appointment_time}\n장소: {location_desc}"
+
+            # 시스템 메시지를 보낼 때 현재 사용자를 sender로 설정
+            ChatMessage.objects.create(
+                chat_room=chat_room,
+                sender_id=user_id,
+                message=system_message,
+            )
+
+            # 채팅방 갱신 시간 업데이트
+            chat_room.save(update_fields=["updated_at"])
+
+            return {
+                "success": True,
+                "message": "거래약속이 생성되었습니다.",
+                "data": {
+                    "id": appointment.id,
+                    "product_id": product.id,
+                    "product_title": product.title,
+                    "seller_id": seller_id,
+                    "seller_nickname": seller.nickname,
+                    "buyer_id": buyer_id,
+                    "buyer_nickname": buyer.nickname,
+                    "appointment_date": appointment.appointment_date,
+                    "location": {
+                        "latitude": appointment.location.y,
+                        "longitude": appointment.location.x,
+                        "description": appointment.location_description,
+                    },
+                    "status": appointment.status,
+                    "chat_room_id": chat_room.id,
+                    "created_at": appointment.created_at,
+                },
+            }
+
+        except ChatRoom.DoesNotExist:
+            return {
+                "success": False,
+                "message": "존재하지 않는 채팅방입니다.",
+                "data": None,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"거래약속 생성 실패: {str(e)}",
+                "data": None,
+            }
+
+    @staticmethod
+    def get_appointment(appointment_id: int, user_id: int) -> dict:
+        """거래약속 상세 정보 조회"""
+        try:
+            # 약속 존재 확인
+            appointment = TradeAppointment.objects.select_related(
+                "product", "seller", "buyer", "chat_room"
+            ).get(id=appointment_id)
+
+            # 권한 체크 (판매자 또는 구매자만 조회 가능)
+            if user_id not in [appointment.seller_id, appointment.buyer_id]:
+                return {
+                    "success": False,
+                    "message": "해당 약속에 접근할 권한이 없습니다.",
+                    "data": None,
+                }
+
+            return {
+                "success": True,
+                "message": "거래약속 정보를 조회했습니다.",
+                "data": {
+                    "id": appointment.id,
+                    "product_id": appointment.product.id,
+                    "product_title": appointment.product.title,
+                    "seller_id": appointment.seller.id,
+                    "seller_nickname": appointment.seller.nickname,
+                    "buyer_id": appointment.buyer.id,
+                    "buyer_nickname": appointment.buyer.nickname,
+                    "appointment_date": appointment.appointment_date,
+                    "location": {
+                        "latitude": appointment.location.y,
+                        "longitude": appointment.location.x,
+                        "description": appointment.location_description,
+                    },
+                    "status": appointment.status,
+                    "chat_room_id": appointment.chat_room.id,
+                    "created_at": appointment.created_at,
+                },
+            }
+
+        except TradeAppointment.DoesNotExist:
+            return {
+                "success": False,
+                "message": "존재하지 않는 거래약속입니다.",
+                "data": None,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"거래약속 조회 실패: {str(e)}",
+                "data": None,
+            }
+
+    @staticmethod
+    def get_appointments_for_chat(chat_room_id: int, user_id: int) -> dict:
+        """채팅방의 거래약속 목록 조회"""
+        try:
+            # 채팅방 권한 체크
+            if not ChatRoomParticipant.objects.filter(
+                chat_room_id=chat_room_id, user_id=user_id, is_active=True
+            ).exists():
+                return {
+                    "success": False,
+                    "message": "채팅방에 접근할 권한이 없습니다.",
+                    "data": [],
+                }
+
+            # 채팅방의 모든 약속 조회
+            appointments = TradeAppointment.objects.filter(
+                chat_room_id=chat_room_id
+            ).order_by("-created_at")
+
+            result = []
+            for appointment in appointments:
+                result.append(
+                    {
+                        "id": appointment.id,
+                        "appointment_date": appointment.appointment_date,
+                        "location_description": appointment.location_description,
+                        "status": appointment.status,
+                        "created_at": appointment.created_at,
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "거래약속 목록을 조회했습니다.",
+                "data": result,
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"거래약속 목록 조회 실패: {str(e)}",
+                "data": [],
+            }
+
+    @staticmethod
+    def update_appointment_status(
+        appointment_id: int, user_id: int, action: str
+    ) -> dict:
+        """거래약속 상태 변경 서비스"""
+        try:
+            # 약속 존재 확인
+            appointment = TradeAppointment.objects.select_related(
+                "product", "chat_room", "seller", "buyer"
+            ).get(id=appointment_id)
+
+            # 권한 체크 (판매자 또는 구매자만 상태 변경 가능)
+            if user_id not in [appointment.seller_id, appointment.buyer_id]:
+                return {
+                    "success": False,
+                    "message": "해당 약속의 상태를 변경할 권한이 없습니다.",
+                    "data": None,
+                }
+
+            # 상태 변경 액션 처리
+            if action == "confirm":
+                if appointment.status != TradeAppointment.Status.PENDING:
+                    return {
+                        "success": False,
+                        "message": "대기 상태인 약속만 확정할 수 있습니다.",
+                        "data": None,
+                    }
+                appointment.status = TradeAppointment.Status.CONFIRMED
+                message = "거래약속이 확정되었습니다."
+                system_message = "[시스템] 거래약속이 확정되었습니다."
+            elif action == "cancel":
+                if appointment.status == TradeAppointment.Status.COMPLETED:
+                    return {
+                        "success": False,
+                        "message": "이미 완료된 약속은 취소할 수 없습니다.",
+                        "data": None,
+                    }
+                appointment.status = TradeAppointment.Status.CANCELED
+                message = "거래약속이 취소되었습니다."
+                system_message = "[시스템] 거래약속이 취소되었습니다."
+
+                # 상품 상태를 다시 판매중으로 변경 (이미 판매완료가 아닌 경우)
+                product = appointment.product
+                if product.status == Product.Status.RESERVED:
+                    product.status = Product.Status.NEW
+                    product.save(update_fields=["status", "updated_at"])
+            elif action == "complete":
+                if appointment.status not in [
+                    TradeAppointment.Status.PENDING,
+                    TradeAppointment.Status.CONFIRMED,
+                ]:
+                    return {
+                        "success": False,
+                        "message": "대기 또는 확정 상태인 약속만 완료 처리할 수 있습니다.",
+                        "data": None,
+                    }
+                appointment.status = TradeAppointment.Status.COMPLETED
+                message = "거래약속이 완료 처리되었습니다."
+                system_message = "[시스템] 거래약속이 완료되었습니다. 거래 후기와 매너 평가를 남겨보세요!"
+            else:
+                return {
+                    "success": False,
+                    "message": "유효하지 않은 액션입니다. (confirm/cancel/complete 중 하나)",
+                    "data": None,
+                }
+
+            # 약속 상태 업데이트
+            appointment.save(update_fields=["status", "updated_at"])
+
+            # 시스템 메시지 추가 - 여기도 sender=None 대신 sender_id=user_id 사용
+            ChatMessage.objects.create(
+                chat_room=appointment.chat_room,
+                sender_id=user_id,  # None 대신 현재 사용자 ID 사용
+                message=system_message,
+            )
+
+            # 채팅방 갱신 시간 업데이트
+            appointment.chat_room.save(update_fields=["updated_at"])
+
+            return {
+                "success": True,
+                "message": message,
+                "data": {
+                    "id": appointment.id,
+                    "product_id": appointment.product.id,
+                    "product_title": appointment.product.title,
+                    "seller_id": appointment.seller.id,
+                    "seller_nickname": appointment.seller.nickname,
+                    "buyer_id": appointment.buyer.id,
+                    "buyer_nickname": appointment.buyer.nickname,
+                    "appointment_date": appointment.appointment_date,
+                    "location": {
+                        "latitude": appointment.location.y,
+                        "longitude": appointment.location.x,
+                        "description": appointment.location_description,
+                    },
+                    "status": appointment.status,
+                    "chat_room_id": appointment.chat_room.id,
+                    "created_at": appointment.created_at,
+                    "updated_at": appointment.updated_at,
+                },
+            }
+
+        except TradeAppointment.DoesNotExist:
+            return {
+                "success": False,
+                "message": "존재하지 않는 거래약속입니다.",
+                "data": None,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"거래약속 상태 변경 실패: {str(e)}",
                 "data": None,
             }

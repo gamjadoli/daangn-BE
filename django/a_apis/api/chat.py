@@ -8,6 +8,10 @@ from a_apis.schema.chat import (
     MessageListResponseSchema,
     SendMessageRequestSchema,
     SendMessageResponseSchema,
+    TradeAppointmentActionSchema,
+    TradeAppointmentCreateSchema,
+    TradeAppointmentListResponseSchema,
+    TradeAppointmentResponseSchema,
 )
 from a_apis.service.chat import ChatService
 from ninja import Query, Router
@@ -85,4 +89,66 @@ def send_message(request, chat_room_id: int, data: SendMessageRequestSchema):
         user_id=request.user.id,
         message=data.message,
         file_id=data.file_id,
+    )
+
+
+@router.post("/{chat_room_id}/appointments", response=TradeAppointmentResponseSchema)
+def create_appointment(request, chat_room_id: int, data: TradeAppointmentCreateSchema):
+    """
+    거래약속 생성 API
+
+    채팅방에서 판매자와 구매자 간 거래 약속 생성.
+    약속 일시와 장소 설정.
+    생성 시 상품 상태가 예약중으로 변경됨.
+    """
+    return ChatService.create_appointment(
+        chat_room_id=chat_room_id,
+        user_id=request.user.id,
+        appointment_date=data.appointment_date,
+        location_lat=data.location.latitude,
+        location_lng=data.location.longitude,
+        location_desc=data.location.description,
+    )
+
+
+@router.get("/{chat_room_id}/appointments", response=TradeAppointmentListResponseSchema)
+def get_appointments_for_chat(request, chat_room_id: int):
+    """
+    채팅방 거래약속 목록 조회 API
+
+    채팅방에 설정된 모든 거래약속 조회.
+    """
+    return ChatService.get_appointments_for_chat(
+        chat_room_id=chat_room_id, user_id=request.user.id
+    )
+
+
+@router.get("/appointments/{appointment_id}", response=TradeAppointmentResponseSchema)
+def get_appointment(request, appointment_id: int):
+    """
+    거래약속 상세 조회 API
+
+    특정 거래약속 상세 정보 조회.
+    판매자 또는 구매자만 조회 가능.
+    """
+    return ChatService.get_appointment(
+        appointment_id=appointment_id, user_id=request.user.id
+    )
+
+
+@router.post(
+    "/appointments/{appointment_id}/status", response=TradeAppointmentResponseSchema
+)
+def update_appointment_status(
+    request, appointment_id: int, data: TradeAppointmentActionSchema
+):
+    """
+    거래약속 상태 변경 API
+
+    거래약속 상태 변경 (confirm: 확정, cancel: 취소, complete: 완료)
+    판매자 또는 구매자만 상태 변경 가능.
+    취소 시 상품 상태가 다시 판매중으로 변경됨.
+    """
+    return ChatService.update_appointment_status(
+        appointment_id=appointment_id, user_id=request.user.id, action=data.action
     )

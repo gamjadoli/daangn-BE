@@ -260,7 +260,7 @@ GitHub Actions를 통한 CI/CD 파이프라인:
 ## 👨‍💻 연락처
 
 - **개발자**: 이재훈
-- **이메일**: ljhx6787@baver.com
+- **이메일**: ljhx6787@naver.com
 - **GitHub**: https://github.com/Jeedoli
 ---
 

@@ -165,3 +165,60 @@ class MannerRatingResponseSchema(Schema):
     success: bool = Field(..., description="성공 여부")
     message: str = Field(..., description="응답 메시지")
     data: Optional[Dict] = Field(None, description="매너 평가 정보")
+
+
+class TradeAppointmentSchema(Schema):
+    """거래약속 상세 정보 스키마"""
+
+    id: int = Field(..., description="약속 ID")
+    product_id: int = Field(..., description="상품 ID")
+    product_title: str = Field(..., description="상품 제목")
+    seller_id: int = Field(..., description="판매자 ID")
+    seller_nickname: str = Field(..., description="판매자 닉네임")
+    buyer_id: int = Field(..., description="구매자 ID")
+    buyer_nickname: str = Field(..., description="구매자 닉네임")
+    appointment_date: datetime = Field(..., description="약속 날짜 및 시간")
+    location: Dict = Field(..., description="약속 장소")
+    status: str = Field(..., description="약속 상태")
+    chat_room_id: int = Field(..., description="채팅방 ID")
+    created_at: datetime = Field(..., description="생성 일시")
+
+
+class TradeAppointmentListItemSchema(Schema):
+    """거래약속 목록 아이템 스키마"""
+
+    id: int = Field(..., description="약속 ID")
+    appointment_date: datetime = Field(..., description="약속 날짜 및 시간")
+    location_description: str = Field(..., description="약속 장소 설명")
+    status: str = Field(..., description="약속 상태")
+    created_at: datetime = Field(..., description="생성 일시")
+
+
+class TradeAppointmentCreateSchema(Schema):
+    """거래약속 생성 스키마"""
+
+    appointment_date: datetime = Field(..., description="약속 날짜 및 시간")
+    location: LocationSchema = Field(..., description="약속 장소")
+    # chat_room_id는 URL 경로에서 받으므로 여기서는 제거
+
+
+class TradeAppointmentResponseSchema(Schema):
+    """거래약속 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[TradeAppointmentSchema] = Field(None, description="거래약속 정보")
+
+
+class TradeAppointmentActionSchema(Schema):
+    """거래약속 상태 변경 스키마"""
+
+    action: str = Field(..., description="상태 변경 액션 (confirm/cancel/complete)")
+
+
+class TradeAppointmentListResponseSchema(Schema):
+    """거래약속 목록 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: List[TradeAppointmentListItemSchema] = Field(..., description="거래약속 목록")

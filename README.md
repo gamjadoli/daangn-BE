@@ -73,6 +73,98 @@
 └── scripts/                # 유틸리티 스크립트
 ```
 
+## 🏗️ 시스템 아키텍처
+
+당마 프로젝트는 마이크로서비스 지향적 아키텍처로 설계되어 있으며, Docker 컨테이너 기반으로 배포됩니다.
+
+```mermaid
+flowchart TD
+    %% 주요 구성요소 정의
+    Client([클라이언트 앱])
+    Nginx{Nginx}
+    ASGI[Django ASGI]
+    WSGI[Django WSGI]
+    Django{{Django 애플리케이션}}
+    DB[(PostgreSQL + PostGIS)]
+    Redis[(Redis)]
+    External([외부 API])
+    
+    %% 주요 모듈 정의 \
+    Core([a_core])
+    Apis([a_apis])
+    User([a_user])
+    Common([a_common])
+    
+    %% 연결 관계
+    Client -->|HTTPS/WSS| Nginx
+    Nginx -->|WS| ASGI
+    Nginx -->|HTTP| WSGI
+    ASGI --> Django
+    WSGI --> Django
+    
+    Django --> Core & Apis & User & Common
+    Django <-->|READ/WRITE| DB
+    Django <-->|캐싱/메시징| Redis
+    Django <-->|API 연동| External
+    
+    %% 스타일링 - 더 높은 대비의 색상으로 조정
+    classDef client fill:#e6f7ff,stroke:#0066cc,stroke-width:2px,color:#000000
+    classDef server fill:#ccefdc,stroke:#006633,stroke-width:2px,color:#000000
+    classDef app fill:#fff2cc,stroke:#996600,stroke-width:2px,color:#000000
+    classDef module fill:#e6e6ff,stroke:#000066,stroke-width:2px,color:#000000
+    classDef database fill:#f9d9ff,stroke:#660066,stroke-width:2px,color:#000000
+    classDef external fill:#ffe6e6,stroke:#990000,stroke-width:2px,color:#000000
+    
+    class Client client
+    class Nginx,ASGI,WSGI server
+    class Django app
+    class Core,Apis,User,Common module
+    class DB,Redis database
+    class External external
+```
+
+### 주요 컴포넌트 설명
+
+1. **프론트엔드**: 웹/모바일 클라이언트 애플리케이션
+2. **인프라 계층**:
+   - **Nginx**: 리버스 프록시 및 로드 밸런서 역할, 정적 파일 제공
+   - **Docker**: 컨테이너화된 서비스 관리
+3. **백엔드 서버 계층**:
+   - **Django ASGI (Daphne)**: WebSocket 처리, 실시간 채팅 기능
+   - **Django WSGI (Gunicorn)**: HTTP API 요청 처리
+4. **애플리케이션 계층**:
+   - **a_core**: 프로젝트 핵심 설정 및 URL 라우팅
+   - **a_apis**: API 엔드포인트, 모델, 서비스 로직
+   - **a_user**: 사용자 관리 및 인증
+   - **a_common**: 공통 유틸리티
+5. **데이터 계층**:
+   - **PostgreSQL + PostGIS**: 관계형 데이터베이스 + 지리 공간 데이터
+   - **Redis**: 캐싱, 세션 관리, 실시간 채팅 채널 레이어
+
+### 주요 기술 흐름도
+
+```mermaid
+sequenceDiagram
+    actor User as 사용자
+    participant Client as 클라이언트
+    participant Nginx as Nginx
+    participant API as Django API
+    participant DB as PostgreSQL
+    
+    User->>Client: 위치 기반 상품 검색
+    Client->>Nginx: API 요청
+    Nginx->>API: HTTP 라우팅
+    API->>DB: PostGIS 공간 쿼리
+    DB-->>API: 위치 기반 결과
+    API-->>Nginx: JSON 응답
+    Nginx-->>Client: 응답
+    Client-->>User: 결과 표시
+```
+
+### 보안 아키텍처
+
+JWT 기반 인증 시스템과 쿠키 인증을 지원하며, 모든 통신은 HTTPS를 통해 암호화됩니다. 권한 기반 접근 제어를 통해 안전한 API 사용을 보장합니다.
+
 ## 🔍 주요 API 엔드포인트
 
 ### 인증 API
@@ -134,7 +226,7 @@ poetry run python manage.py runserver --settings=a_core.settings.development
 
 5. API 문서 접속
 ```
-http://127.0.0.1:8000/api/docs
+https://api.dangma.store/api/docs#/
 ```
 
 ### Docker를 통한 실행
@@ -167,10 +259,9 @@ GitHub Actions를 통한 CI/CD 파이프라인:
 
 ## 👨‍💻 연락처
 
-- **개발자**: [당신의 이름]
-- **이메일**: [당신의 이메일]
-- **GitHub**: [당신의 GitHub 링크]
-
+- **개발자**: 이재훈
+- **이메일**: ljhx6787@naver.com
+- **GitHub**: https://github.com/Jeedoli
 ---
 
 © 2025 당마(DangMa) 프로젝트

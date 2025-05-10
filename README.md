@@ -1,81 +1,172 @@
-# 🛒 당마(DangMa) - 중고거래 플랫폼
+# 🥕 당마(DangMa) - 위치 기반 중고거래 플랫폼
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![Django](https://img.shields.io/badge/Django-5.1.6-green)
+![Django Ninja](https://img.shields.io/badge/Django_Ninja-1.0-orange)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![Nginx](https://img.shields.io/badge/Nginx-1.21-brightgreen)
 ![CI/CD](https://img.shields.io/badge/CI/CD-GitHub_Actions-blue)
+![SSL](https://img.shields.io/badge/SSL-Let's_Encrypt-brightgreen)
 
-## 📋 프로젝트 소개
+## 📋 프로젝트 개요
 
-**당마**는 위치 기반 중고 거래 플랫폼으로, Django 프레임워크를 활용한 백엔드 API 서버입니다. 사용자가 근처 이웃들과 중고 물품을 쉽게 거래할 수 있도록 도와주는 시스템을 구현했습니다.
+**당마**는 사용자의 지리적 위치를 기반으로 근처 이웃과 중고 물품을 거래할 수 있는 플랫폼입니다. Django와 PostGIS를 활용한 위치 기반 서비스와 WebSocket을 통한 실시간 채팅 기능을 핵심으로 하는 백엔드 API 서버를 개발했습니다.
 
-### 주요 특징
-- **위치 기반 서비스**: 사용자 위치를 기반으로 주변 상품 검색 및 활동 지역 설정
-- **실시간 채팅**: WebSocket을 활용한 실시간 채팅 기능으로 판매자-구매자 간 소통
-- **사용자 평가 시스템**: 매너온도와 리뷰를 통한 신뢰도 평가
-- **API 기반 설계**: RESTful API 패턴을 통한 확장 가능한 서비스 구조
-- **컨테이너 기반 배포**: Docker와 GitHub Actions를 활용한 CI/CD 파이프라인
+- **개발 기간**: 2025.04 ~  (개발중)
+- **역할**: 백엔드 개발자 (Django 백엔드 API 서버 설계 및 구현)
+- **GitHub**: https://github.com/Jeedoli
 
-## 🔧 기술 스택
+## 🛠️ 기술 스택
 
 ### 백엔드
-- **언어 & 프레임워크**: Python 3.12, Django 5.1.6
-- **API**: REST Framework
-- **데이터베이스**: PostgreSQL + PostGIS(위치 데이터)
-- **비동기 처리**: Channels, Daphne (WebSocket)
-- **인증**: JWT 토큰 기반 인증
+
+- **언어 & 프레임워크**: Python 3.12, Django 5.1.6, Django Ninja
+- **비동기 처리**: Django Channels, ASGI(Daphne)
+- **인증**: JWT 기반 인증 시스템
+- **보안**: Let's Encrypt SSL 인증서, HTTPS 적용
+
+### 데이터베이스
+
+- **메인 DB**: PostgreSQL + PostGIS(위치 데이터)
+- **캐싱 & 메시징**: Redis
 
 ### 인프라
+
 - **컨테이너화**: Docker, Docker Compose
 - **웹 서버**: Nginx
 - **CI/CD**: GitHub Actions
-- **SSL/TLS**: Let's Encrypt
 - **배포 환경**: AWS
+- **보안**: Let's Encrypt 자동 갱신, Certbot
 
-## 💻 주요 기능
+## 💡 핵심 기능
 
-### 1. 인증 및 사용자 관리
-- JWT 기반 사용자 인증
-- 이메일 인증 시스템
-- 사용자 프로필 관리
+### 1. 위치 기반 서비스
 
-### 2. 상품 관리
-- 상품 등록, 수정, 삭제, 조회
-- 카테고리별 상품 분류
-- 가격 제안 시스템
+- 사용자 위치 인증 및 활동 지역 설정
+- 반경 기반 근처 상품 검색 (PostGIS 활용)
+- 행정구역(시도, 시군구, 읍면동) 기반 지역 필터링
 
-### 3. 위치 기반 서비스
-- 지역 인증 및 활동 지역 설정
-- 반경 기반 근처 상품 검색
-- 공간 데이터 활용 (SGIS API 연동)
+### 2. 실시간 채팅 시스템
 
-### 4. 실시간 채팅
-- WebSocket을 활용한 실시간 메시지
-- 1:1 채팅방 관리
-- 파일/이미지 전송 지원
+- WebSocket을 활용한 실시간 1:1 채팅
+- 채팅방 및 메시지 관리
+- 읽음 상태 추적 및 오프라인 메시지 처리
 
-### 5. 거래 관리
-- 거래 약속 설정
-- 거래 후기 및 평가
-- 매너 온도 시스템
+### 3. 상품 관리 시스템
 
-## 🗂️ 프로젝트 구조
+- 상품 등록, 수정, 삭제, 조회 API
+- 카테고리별 분류 및 검색
+- 관심 상품 등록 및 관리
 
-```
-당마(DangMa)/
-├── django/                 # Django 애플리케이션
-│   ├── a_core/             # 프로젝트 설정 및 코어
-│   ├── a_apis/             # API 엔드포인트 및 비즈니스 로직
-│   ├── a_user/             # 사용자 관련 기능
-│   └── a_common/           # 공통 모듈 및 유틸리티
-├── nginx/                  # Nginx 설정
-└── scripts/                # 유틸리티 스크립트
-```
+### 4. 거래 프로세스 관리
 
-## 🏗️ 시스템 아키텍처
+- 거래 약속 설정 및 관리
+- 가격 제안 및 협상 기능
+- 거래 완료 및 평가(매너온도) 시스템
 
-당마 프로젝트는 마이크로서비스 지향적 아키텍처로 설계되어 있으며, Docker 컨테이너 기반으로 배포됩니다.
+## 🔍 기술적 도전 및 해결책
+
+### 위치 데이터 처리 최적화
+
+- **도전**: 대량의 위치 데이터를 효율적으로 처리하고 신속한 검색 결과 제공
+- **해결책**:
+    - PostGIS 공간 인덱스를 통한 위치 검색 쿼리 최적화
+    - 행정구역 경계를 MultiPolygon 형태로 저장하여 효율적인 위치 계산
+    - Redis 캐싱으로 자주 요청되는 지역 정보의 응답 시간 단축
+    
+    ```python
+    # 위치 기반 상품 검색 최적화 예시
+    user_location = Point(lng, lat, srid=4326)
+    products = Product.objects.filter(
+        status="on_sale",
+        location__distance_lte=(user_location, D(m=radius))
+    ).annotate(
+        distance=Distance("location", user_location)
+    ).select_related("user").prefetch_related("images")
+    
+    ```
+
+### 실시간 채팅 구현
+
+- **도전**: 확장 가능하고 신뢰성 있는 실시간 메시징 시스템 구축
+- **해결책**:
+    - Django Channels와 Redis 채널 레이어를 활용한 WebSocket 구현
+    - 데이터베이스에 메시지 영구 저장 및 읽음 상태 추적 메커니즘 개발
+    - 채팅방 참여 권한 관리 및 메시지 보안 처리
+    
+    ```python
+    # WebSocket Consumer 핵심 구현
+    class ChatConsumer(AsyncWebsocketConsumer):
+        async def connect(self):
+            # 사용자 인증 및 권한 확인
+            # 채팅방 그룹 참여
+    
+        async def receive(self, text_data):
+            # 메시지 처리 및 저장
+            # 그룹 브로드캐스트
+    
+    ```
+
+### Django Ninja를 활용한 API 설계
+
+- **도전**: 타입 안전하고 문서화가 잘된 API 시스템 구축
+- **해결책**:
+    - Django Ninja를 도입하여 FastAPI 스타일의 타입 힌팅 적용
+    - Pydantic 기반 스키마로 요청/응답 데이터 검증 자동화
+    - OpenAPI 자동 문서화로 프론트엔드 개발과의 협업 효율화
+    
+    ```python
+    # Django Ninja API 정의 예시
+    from ninja import Router, Schema
+    
+    router = Router()
+    
+    class ProductSchema(Schema):
+        title: str
+        price: int
+        description: str
+    
+    @router.post("/products", response={201: ProductSchema})
+    def create_product(request, data: ProductSchema):
+        product = Product.objects.create(**data.dict())
+        return 201, product
+    ```
+
+### CI/CD 파이프라인 자동화
+
+- **도전**: 안정적인 배포 환경과 데이터베이스 마이그레이션 자동화
+- **해결책**:
+    - GitHub Actions를 활용하여 develop→main 브랜치 병합 시 자동 배포
+    - Docker Compose에 마이그레이션 및 정적 파일 수집 자동화 통합
+    - 배포 과정 로깅 및 오류 알림 시스템 구현
+
+### SSL 인증서 자동화 및 보안 강화
+
+- **도전**: 안전한 HTTPS 연결 제공 및 인증서 관리 자동화
+- **해결책**:
+    - Let's Encrypt와 Certbot을 활용한 무료 SSL 인증서 발급 및 자동 갱신
+    - Nginx 설정에 SSL 암호화 및 보안 헤더 적용
+    - HTTP/2 프로토콜 지원으로 성능 최적화
+    
+    ```nginx
+    # Nginx SSL 설정 예시
+    server {
+        listen 443 ssl http2;
+        server_name dangma.store;
+        
+        ssl_certificate /etc/letsencrypt/live/dangma.store/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/dangma.store/privkey.pem;
+        
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        
+        # 보안 헤더 설정
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options nosniff;
+    }
+    ```
+
+## 📊 시스템 아키텍처
 
 ```mermaid
 flowchart TD
@@ -89,7 +180,7 @@ flowchart TD
     Redis[(Redis)]
     External([외부 API])
     
-    %% 주요 모듈 정의 \
+    %% 주요 모듈 정의
     Core([a_core])
     Apis([a_apis])
     User([a_user])
@@ -123,73 +214,56 @@ flowchart TD
     class External external
 ```
 
-### 주요 컴포넌트 설명
+### 주요 컴포넌트
 
-1. **프론트엔드**: 웹/모바일 클라이언트 애플리케이션
-2. **인프라 계층**:
-   - **Nginx**: 리버스 프록시 및 로드 밸런서 역할, 정적 파일 제공
-   - **Docker**: 컨테이너화된 서비스 관리
-3. **백엔드 서버 계층**:
-   - **Django ASGI (Daphne)**: WebSocket 처리, 실시간 채팅 기능
-   - **Django WSGI (Gunicorn)**: HTTP API 요청 처리
-4. **애플리케이션 계층**:
-   - **a_core**: 프로젝트 핵심 설정 및 URL 라우팅
-   - **a_apis**: API 엔드포인트, 모델, 서비스 로직
-   - **a_user**: 사용자 관리 및 인증
-   - **a_common**: 공통 유틸리티
-5. **데이터 계층**:
-   - **PostgreSQL + PostGIS**: 관계형 데이터베이스 + 지리 공간 데이터
-   - **Redis**: 캐싱, 세션 관리, 실시간 채팅 채널 레이어
+- **Django API 서버**: Django Ninja를 통한 API 및 비즈니스 로직 처리
+- **Channels**: WebSocket 연결 관리 및 실시간 메시징
+- **PostgreSQL & PostGIS**: 관계형 데이터 및 위치 데이터 저장
+- **Redis**: 캐싱, 세션 관리, 채널 레이어
+- **Nginx**: 리버스 프록시, SSL 종료, 정적 파일 서빙
+- **Certbot**: SSL 인증서 발급 및 자동 갱신
 
-### 주요 기술 흐름도
+## 📝 프로젝트 구조
 
-```mermaid
-sequenceDiagram
-    actor User as 사용자
-    participant Client as 클라이언트
-    participant Nginx as Nginx
-    participant API as Django API
-    participant DB as PostgreSQL
-    
-    User->>Client: 위치 기반 상품 검색
-    Client->>Nginx: API 요청
-    Nginx->>API: HTTP 라우팅
-    API->>DB: PostGIS 공간 쿼리
-    DB-->>API: 위치 기반 결과
-    API-->>Nginx: JSON 응답
-    Nginx-->>Client: 응답
-    Client-->>User: 결과 표시
+```
+당마(DangMa)/
+├── django/
+│   ├── a_core/          # 프로젝트 설정 및 코어
+│   ├── a_apis/          # API 엔드포인트 및 비즈니스 로직
+│   │   ├── api/         # API 라우팅 및 엔드포인트
+│   │   │   ├── api.py   # API 진입점
+│   │   │   ├── chat.py  # 채팅 API
+│   │   │   ├── products.py # 상품 API
+│   │   │   ├── region.py # 지역 API
+│   │   │   └── users.py # 사용자 API
+│   │   ├── auth/        # 인증 관련 모듈
+│   │   ├── models/      # 데이터 모델
+│   │   │   ├── chat.py  # 채팅 모델
+│   │   │   ├── product.py # 상품 모델
+│   │   │   ├── region.py # 지역 모델
+│   │   │   └── trade.py # 거래 모델
+│   │   ├── schema/      # Django Ninja 스키마
+│   │   │   ├── chat.py  # 채팅 스키마
+│   │   │   ├── products.py # 상품 스키마
+│   │   │   ├── region.py # 지역 스키마
+│   │   │   └── users.py # 사용자 스키마
+│   │   ├── service/     # 비즈니스 로직 서비스
+│   │   ├── consumers.py # WebSocket 소비자
+│   │   └── routing.py   # WebSocket 라우팅
+│   ├── a_user/          # 사용자 관련 기능
+│   └── a_common/        # 공통 모듈 및 유틸리티
+├── nginx/               
+│   ├── nginx.conf       # Nginx 메인 설정
+│   └── ssl/             # SSL 인증서 관련 설정
+└── docker-compose.yml   # 컨테이너 구성
 ```
 
-### 보안 아키텍처
+## 🔧 테스트 및 품질 관리
 
-JWT 기반 인증 시스템과 쿠키 인증을 지원하며, 모든 통신은 HTTPS를 통해 암호화됩니다. 권한 기반 접근 제어를 통해 안전한 API 사용을 보장합니다.
-
-## 🔍 주요 API 엔드포인트
-
-### 인증 API
-- `POST /api/auth/signup/`: 회원가입
-- `POST /api/auth/login/`: 로그인
-- `POST /api/auth/refresh/`: 토큰 갱신
-
-### 사용자 API
-- `GET /api/users/me/`: 내 정보 조회
-- `PATCH /api/users/me/`: 내 정보 수정
-- `GET /api/users/regions/`: 내 활동 지역 조회
-
-### 상품 API
-- `GET /api/products/`: 상품 목록 조회
-- `POST /api/products/`: 상품 등록
-- `GET /api/products/{id}/`: 상품 상세 조회
-- `POST /api/products/{id}/interests/`: 관심 상품 등록/해제
-
-### 채팅 API
-- `GET /api/chats/rooms/`: 내 채팅방 목록
-- `POST /api/chats/rooms/`: 채팅방 생성
-- WebSocket 연결: `ws://domain/ws/chat/{room_id}/`
-
-## 📊 ERD 설계
-![ERD 설계](https://github.com/user-attachments/assets/c89dcbe9-a762-473d-906d-c172460d599c)
+- **단위 테스트**: 핵심 기능별 테스트 케이스 작성 (위치 검색, 채팅, 인증)
+- **통합 테스트**: API 엔드포인트 및 WebSocket 연결 테스트
+- **외부 API 모킹**: SGIS API 연동 테스트를 위한 모킹 구현
+- **코드 품질 관리**: Black, flake8을 통한 코드 스타일 일관성 유지
 
 ## 🚀 로컬 개발 환경 설정
 
@@ -234,28 +308,43 @@ https://api.dangma.store/api/docs#/
 docker-compose up -d
 ```
 
-## 🔄 CI/CD 워크플로우
+### SSL 개발 환경 설정 (선택사항)
+```bash
+# 로컬 개발용 자체 서명 인증서 생성
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./nginx/ssl/local-cert.key -out ./nginx/ssl/local-cert.crt
 
-GitHub Actions를 통한 CI/CD 파이프라인:
-- develop → main 브랜치 병합 시 자동 배포
-- 테스트 자동화 및 품질 검사
-- Docker 이미지 빌드 및 배포
-- 데이터베이스 마이그레이션 자동화
+# 또는 mkcert 사용 (권장)
+mkcert -install
+mkcert -key-file ./nginx/ssl/local-cert.key -cert-file ./nginx/ssl/local-cert.crt localhost 127.0.0.1
+```
 
-## 📝 성과 및 배운 점
+## 📚 성과 및 배운 점
 
-- **확장 가능한 아키텍처 설계**: 마이크로서비스 지향적인 구조로 모듈 간 의존성 최소화
-- **실시간 기능 구현**: WebSocket을 활용한 실시간 채팅 시스템 구축
-- **공간 데이터 처리**: PostGIS를 활용한 위치 기반 검색 및 필터링 구현
-- **CI/CD 자동화**: GitHub Actions을 활용한 배포 파이프라인 구축
-- **보안 강화**: JWT 토큰 기반 인증 및 HTTPS 적용
+### 성과
 
-## 📈 향후 개선 계획
+- Django와 Django Ninja를 활용한 타입 안전한 API 서버 구축
+- PostGIS를 활용한 효율적인 위치 기반 검색 시스템 개발
+- WebSocket을 통한 실시간 양방향 통신 구현
+- Docker 기반 개발/배포 환경 및 CI/CD 파이프라인 구축
 
-- 알림 시스템 구축 (FCM, WebPush)
-- 검색 기능 최적화 (Elasticsearch 도입)
-- 마이크로서비스로의 점진적 전환
-- 성능 모니터링 도입 (Prometheus, Grafana)
+### 배운 점
+
+- **API 설계 패턴**: Django Ninja와 스키마 기반 API 설계로 코드 견고성 향상
+- **비동기 프로그래밍**: Channels와 ASGI를 통한 비동기 통신 패턴 습득
+- **공간 데이터 처리**: GIS 개념과 공간 쿼리 최적화 기법 습득
+- **컨테이너 오케스트레이션**: Docker Compose를 통한 멀티 컨테이너 관리 경험
+
+### 향후 개선 계획
+
+- Elasticsearch 도입을 통한 검색 기능 고도화
+- 푸시 알림 시스템 구현 (FCM, WebPush)
+- 성능 모니터링 도구 도입 (Prometheus, Grafana)
+- 마이크로서비스 아키텍처로의 점진적 전환
+
+## 🔗 추가 자료
+
+- **API 문서**: [https://api.dangma.store/api/docs#](https://api.dangma.store/api/docs#/)
+- **GitHub**: https://github.com/Jeedoli
 
 ## 👨‍💻 연락처
 

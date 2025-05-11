@@ -4,33 +4,35 @@ FROM python:3.12-slim
 # 환경 변수 설정
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV DEBIAN_FRONTEND=noninteractive
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# GDAL 관련 패키지와 PostgreSQL 개발 패키지 설치
-RUN apt-get update && apt-get install -y \
+# 필수 패키지만 설치하고 캐시 삭제하여 이미지 크기 감소
+RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils libproj-dev gdal-bin python3-gdal \
     build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --upgrade pip poetry \
+    && poetry config virtualenvs.create false
 
-# Poetry 설치 및 설정
-RUN pip install --upgrade pip && pip install poetry
-RUN poetry config virtualenvs.create false
-
-# 의존성 설치 (수정된 경로)
+# 의존성 파일만 먼저 복사하여 캐싱 활용
 COPY pyproject.toml poetry.lock* /app/
-RUN poetry install --no-interaction --no-ansi
+RUN poetry install --no-interaction --no-ansi --no-dev
 
 # 소스 코드 복사
 COPY . /app/
 
 # 정적 파일 디렉토리 생성
-RUN mkdir -p /app/static /app/media
+RUN mkdir -p /app/static /app/media \
+    # 캐시 파일 정리
+    && find /app -type d -name __pycache__ -exec rm -rf {} +
 
 # 8000번 포트 노출
 EXPOSE 8000
 
 # 애플리케이션 실행을 위한 기본 명령어 정의
-# Gunicorn 대신 Daphne를 사용하여 WebSocket 지원
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "a_core.asgi:application"]

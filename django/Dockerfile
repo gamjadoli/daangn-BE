@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 의존성 파일만 먼저 복사하여 캐싱 활용
 COPY pyproject.toml poetry.lock* /app/
-RUN poetry install --no-interaction --no-ansi --no-dev
+RUN poetry install --no-interaction --no-ansi --without dev
 
 # 소스 코드 복사
 COPY . /app/

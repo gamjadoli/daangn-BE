@@ -9,19 +9,21 @@ https://docs.djangoproject.com/en/5.1/howto/deployment/asgi/
 
 import os
 
-# 웹소켓 라우팅 설정 임포트
-from a_apis.routing import websocket_urlpatterns
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
-
-from django.core.asgi import get_asgi_application
-
 # 설정 모듈 기본값 설정
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "a_core.settings.development")
 
+# Django 앱 설정이 로드된 후에 다른 모듈 임포트
+from django.core.asgi import get_asgi_application
+
 # HTTP 요청을 처리하기 위한 ASGI 애플리케이션 가져오기
 django_asgi_app = get_asgi_application()
+
+from a_apis.routing import websocket_urlpatterns
+
+# 웹소켓 라우팅 설정 임포트 (Django 앱 초기화 후)
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
 
 # ASGI 애플리케이션 구성
 application = ProtocolTypeRouter(

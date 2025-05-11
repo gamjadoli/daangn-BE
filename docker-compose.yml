@@ -9,7 +9,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn a_core.wsgi:application --bind 0.0.0.0:8000"
+             daphne -b 0.0.0.0 -p 8000 a_core.asgi:application"
     volumes:
       - ./django/:/app/
       - static_volume:/app/static

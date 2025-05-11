@@ -8,6 +8,8 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              daphne -b 0.0.0.0 -p 8000 a_core.asgi:application"
+    ports:
+      - "8000:8000"   # 포트 바인딩 명시적으로 추가
     volumes:
       - ./django/:/app/
       - static_volume:/app/static

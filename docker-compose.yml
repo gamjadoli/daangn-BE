@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build:
@@ -14,10 +12,15 @@ services:
       - ./django/:/app/
       - static_volume:/app/static
       - media_volume:/app/media
+      - /app/__pycache__
+      - /app/*/__pycache__
+      - /app/*/*/__pycache__
+      - /app/*/*/*/__pycache__
     env_file:
       - ./django/.env
     environment:
       - DJANGO_SETTINGS_MODULE=a_core.settings.product
+      - PYTHONDONTWRITEBYTECODE=1
     networks:
       - backend-network
     depends_on:
@@ -30,6 +33,17 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:1.21-alpine
@@ -46,6 +60,11 @@ services:
       - web
     networks:
       - backend-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:latest
@@ -54,6 +73,32 @@ services:
       - "6379:6379"
     networks:
       - backend-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cleaner:
+    image: docker:cli
+    restart: "no"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      sh -c "docker system prune -af --volumes && 
+             docker builder prune -af"
+    depends_on:
+      - web
+      - nginx
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      resources:
+        limits:
+          memory: 50M
+    labels:
+      - "com.docker.compose.cron.schedule=0 3 * * 1"
 
 volumes:
   static_volume:

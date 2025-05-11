@@ -39,28 +39,39 @@ jobs:
             git pull origin main
             
             # 기존 서비스 상태 백업 (선택적)
-            docker-compose ps > service_status_backup.txt
+            docker compose ps > service_status_backup.txt
+            
+            # 디스크 사용량 확인 및 기록 (배포 전)
+            echo "Disk usage before cleanup:" >> deploy_disk_usage.log
+            df -h / >> deploy_disk_usage.log
+            
+            # 빌드 캐시 정리
+            echo "Cleaning Docker build cache..."
+            docker builder prune -f
             
             # 프로젝트 관련 컨테이너만 중지 후 제거 (다른 프로젝트에 영향 없음)
-            docker-compose down
+            docker compose down
+            
+            # docker-compose.yml에서 version 속성 제거 (경고 방지)
+            sed -i '1s/^version.*$//' docker-compose.yml 2>/dev/null || true
             
             # 사용하지 않는 프로젝트 관련 이미지만 제거
-            docker-compose down --rmi local
+            docker compose down --rmi local
             
             # 새 이미지 빌드 및 서비스 시작
-            docker-compose -f docker-compose.yml build
+            docker compose -f docker-compose.yml build
             
             echo "Starting services with automatic migrations..."
             # docker-compose.yml의 command에 이미 migrate 명령이 포함되어 있습니다
-            docker-compose -f docker-compose.yml up -d
+            docker compose -f docker-compose.yml up -d
             
             # 마이그레이션 로그 확인
             echo "Checking migration logs..."
-            docker-compose logs --tail=50 web | grep -i migrat
+            docker compose logs --tail=50 web | grep -i migrat
             
             # 사용하지 않는 리소스 정리 (위험 요소 줄임)
             docker image prune -a --filter "until=24h" --force
             
             # 배포 완료 로그
             echo "Deployment completed at $(date)"
-            docker-compose ps
+            docker compose ps

@@ -75,13 +75,15 @@ services:
   redis:
     image: redis:6-alpine  # 더 가벼운 alpine 버전 사용
     restart: on-failure:5
-    command: redis-server --save 900 1 --loglevel warning --maxmemory 64mb --maxmemory-policy volatile-lru
+    command: redis-server --loglevel warning
+    ports:
+      - "6379:6379"
     networks:
       - backend-network
     deploy:
       resources:
         limits:
-          memory: 80M  # Redis 메모리 제한
+          memory: 100M  # Redis 메모리 제한 상향 조정
     logging:
       driver: "json-file"
       options:

@@ -28,8 +28,7 @@ COPY pyproject.toml poetry.lock* /app/
 RUN sed -i '/package-mode/d' /app/pyproject.toml
 
 # 개발 의존성을 제외하고 패키지 설치
-RUN poetry install --no-interaction --no-ansi --without dev \
-    && pip cache purge
+RUN poetry install --no-interaction --no-ansi --without dev
 
 # 소스 코드 복사
 COPY . /app/

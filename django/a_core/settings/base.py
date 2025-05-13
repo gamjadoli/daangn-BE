@@ -128,12 +128,18 @@ WSGI_APPLICATION = "a_core.wsgi.application"
 # ASGI 적용
 ASGI_APPLICATION = "a_core.asgi.application"
 
+# Redis 호스트 설정 (개발: localhost, 배포: redis 서비스명)
+REDIS_HOST = os.environ.get("DEV_REDIS_HOST", "redis")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+
 # Channel Layer 설정 (Redis 사용)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],  # docker-compose에서 지정한 redis 서비스명
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "capacity": 100,  # 채널 레이어 용량 제한
+            "expiry": 60,  # 메시지 만료 시간(초)
         },
     },
 }

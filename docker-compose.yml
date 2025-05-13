@@ -1,6 +1,5 @@
 services:
   web:
-    container_name: daangn-be-web-${DEPLOY_ID:-$(date +%s)}
     build:
       context: .
       dockerfile: django/Dockerfile
@@ -52,7 +51,6 @@ services:
         max-file: "1"   # 백업 파일 제한
 
   nginx:
-    container_name: daangn-be-nginx-${DEPLOY_ID:-$(date +%s)}
     image: nginx:1.21-alpine
     restart: on-failure:5
     ports:
@@ -78,7 +76,6 @@ services:
         max-file: "1"
 
   redis:
-    container_name: daangn-be-redis-${DEPLOY_ID:-$(date +%s)}
     image: redis:alpine
     restart: always
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
@@ -104,7 +101,6 @@ services:
 
   # 디스크 공간 자동 정리를 위한 서비스 (스크립트 없이 직접 명령어 실행)
   cleaner:
-    container_name: daangn-be-cleaner  # 고정된 이름으로 설정 (타임스탬프 제거)
     image: docker:cli
     restart: unless-stopped
     volumes:

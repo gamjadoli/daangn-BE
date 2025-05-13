@@ -46,13 +46,21 @@ jobs:
             echo "Cleaning unused Docker resources..."
             docker system prune -f --filter "until=24h"
             
-            # 무중단 배포 프로세스
+            # 웹 컨테이너 실행 상태 확인
+            CONTAINER_RUNNING=$(docker ps -q -f name=web)
+            if [ -n "$CONTAINER_RUNNING" ]; then
+              echo "Web container is running, stopping it first..."
+              docker stop $(docker ps -q -f name=web)
+              docker rm $(docker ps -aq -f name=web)
+            fi
+            
+            # 새 이미지 빌드
             echo "Building new image for web service..."
             docker compose build web
             
-            # 웹 서비스만 재시작 (다른 서비스는 그대로 유지)
-            echo "Restarting web service only..."
-            docker compose up -d --no-deps web
+            # 웹 서비스 시작
+            echo "Starting web service..."
+            docker compose up -d web
             
             # 서비스 상태 확인
             echo "Deployment completed at $(date)"

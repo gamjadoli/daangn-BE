@@ -20,6 +20,6 @@ class UserSchema(Schema):
 class SocialLoginResponseSchema(Schema):
     success: bool
     message: str
-    tokens: TokenSchema
-    user: UserSchema
-    redirect_url: str
+    tokens: Optional[TokenSchema] = None
+    user: Optional[UserSchema] = None
+    redirect_url: Optional[str] = None

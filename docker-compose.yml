@@ -23,6 +23,8 @@ services:
       # 메모리 최적화 환경변수 추가
       - PYTHONUNBUFFERED=1
       - PYTHONOPTIMIZE=1
+      # 메모리 사용량 제한 추가
+      - MALLOC_ARENA_MAX=2
     networks:
       - backend-network
     depends_on:
@@ -31,12 +33,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.35'  # CPU 제한 감소 
-          memory: 300M  # 메모리 제한 감소
+          cpus: '0.35'  # CPU 제한
+          memory: 300M  # 메모리 제한
         reservations:
-          cpus: '0.15'  # 예약 자원 감소
-          memory: 128M  # 최소 필요 메모리
-    # 헬스체크 완전히 단순화
+          cpus: '0.15'
+          memory: 128M
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep '[d]aphne' || exit 1"]
       interval: 30s
@@ -46,12 +47,12 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"  # 로그 크기 감소
-        max-file: "1"   # 백업 파일 감소
+        max-size: "5m"  # 로그 크기 제한
+        max-file: "1"   # 백업 파일 제한
 
   nginx:
     image: nginx:1.21-alpine
-    restart: on-failure:5  # 무한 재시작 방지
+    restart: on-failure:5
     ports:
       - "80:80"
       - "443:443"
@@ -65,21 +66,21 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M  # Nginx 메모리 제한
+          memory: 128M
     networks:
       - backend-network
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"  # 로그 크기 감소
-        max-file: "1"   # 백업 파일 감소
+        max-size: "5m"
+        max-file: "1"
 
   redis:
     image: redis:alpine
-    restart: always  # 항상 재시작되도록 설정
-    command: redis-server  # 가장 기본적인 명령어
+    restart: always
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"  # Redis 포트 노출
+      - "6379:6379"
     networks:
       - backend-network
     healthcheck:
@@ -87,11 +88,40 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s  # 시작 대기 시간 추가
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     logging:
       driver: "json-file"
       options:
         max-size: "2m"
+        max-file: "1"
+
+  # 디스크 공간 자동 정리를 위한 서비스 (스크립트 없이 직접 명령어 실행)
+  cleaner:
+    image: docker:cli
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: sh
+    command: >
+      -c "while true; do
+          echo '=== 디스크 공간 정리 실행: '`date` '===';
+          docker system prune -f --filter 'until=24h';
+          docker image prune -f --filter 'until=24h';
+          echo '=== 정리 완료 ===';
+          sleep 86400;
+          done"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
         max-file: "1"
 
 volumes:

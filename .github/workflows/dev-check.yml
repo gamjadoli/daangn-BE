@@ -36,13 +36,30 @@ jobs:
         id: apt-cache
         with:
           path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-gdal-${{ hashFiles('.github/workflows/dev-check.yml') }}
+          key: ${{ runner.os }}-apt-gdal-v2-${{ hashFiles('.github/workflows/dev-check.yml') }}
       
-      - name: Install GDAL and spatial dependencies
-        if: steps.apt-cache.outputs.cache-hit != 'true'
+      - name: Install GDAL and spatial dependencies (Optimized)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev python3-gdal binutils libproj-dev libgeos-dev
+          echo "🚀 설치 시작 - 최적화된 GDAL 및 공간 라이브러리"
+          # apt 패키지 색인 업데이트 시간 단축
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get update -qq
+          
+          # 필수 패키지만 설치하고 추천 패키지는 제외
+          sudo apt-get install -y --no-install-recommends \
+            gdal-bin \
+            libgdal-dev \
+            python3-gdal \
+            binutils \
+            libproj-dev
+          
+          # 설치 후 캐시 정리
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          
+          echo "✅ GDAL 설치 완료"
+          # GDAL 버전 확인
+          gdal-config --version
 
       - name: Set up Python
         uses: actions/setup-python@v4

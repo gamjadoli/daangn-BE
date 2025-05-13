@@ -24,6 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 의존성 파일만 먼저 복사하여 캐싱 활용
 COPY pyproject.toml poetry.lock* /app/
 
+# package-mode 속성 제거 - Poetry 1.6.1과 호환성 문제 해결
+RUN sed -i '/package-mode/d' /app/pyproject.toml
+
 # 개발 의존성을 제외하고 패키지 설치
 RUN poetry install --no-interaction --no-ansi --without dev \
     && pip cache purge

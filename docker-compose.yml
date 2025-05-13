@@ -73,17 +73,16 @@ services:
         max-file: "1"   # 백업 파일 감소
 
   redis:
-    image: redis:6-alpine  # 더 가벼운 alpine 버전 사용
-    restart: on-failure:5
-    command: redis-server --loglevel warning
-    ports:
-      - "6379:6379"
+    image: redis:alpine
+    restart: always  # 항상 재시작되도록 설정
+    command: redis-server  # 가장 기본적인 명령어
     networks:
       - backend-network
-    deploy:
-      resources:
-        limits:
-          memory: 100M  # Redis 메모리 제한 상향 조정
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     logging:
       driver: "json-file"
       options:

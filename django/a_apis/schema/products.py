@@ -65,6 +65,7 @@ class ProductCreateSchema(Schema):
     description: str = Field(
         ..., description="상품 설명 (상세 정보, 거래 관련 주의사항 등)"
     )
+    region_id: int = Field(..., description="등록할 동네 ID (인증된 동네 중 선택)")
     meeting_location: LocationSchema = Field(..., description="거래 희망 위치 정보")
 
     @validator("title")

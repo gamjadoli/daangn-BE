@@ -57,6 +57,13 @@ class Product(CommonModel):
         related_name="products",
         verbose_name="판매자",
     )
+    region = models.ForeignKey(
+        "a_apis.EupmyeondongRegion",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="products",
+        verbose_name="등록 동네",
+    )
     buyer = models.ForeignKey(
         "a_user.User",  # 구매자 정보
         on_delete=models.SET_NULL,

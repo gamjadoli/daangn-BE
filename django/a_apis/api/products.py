@@ -119,6 +119,7 @@ def list_products(
     search: Optional[str] = None,
     status: Optional[str] = None,
     trade_type: Optional[str] = None,
+    region_id: Optional[int] = None,
     page: int = 1,
     page_size: int = 20,
 ):
@@ -129,6 +130,7 @@ def list_products(
     - search: 검색어 (상품명, 설명 검색)
     - status: 상품 상태 필터 (new: 판매중, reserved: 예약중, soldout: 판매완료)
     - trade_type: 거래 방식 필터 (sale: 판매하기, share: 나눔하기)
+    - region_id: 특정 동네 ID 필터 (설정된 경우 해당 동네의 상품만 표시, 없으면 현재 활성화된 동네 기준)
 
     페이징:
     - page: 페이지 번호 (기본값: 1)
@@ -138,8 +140,9 @@ def list_products(
     - 기본 조회: /api/products/
     - 검색: /api/products/?search=자전거
     - 필터링: /api/products/?status=new&trade_type=sale
+    - 동네 필터링: /api/products/?region_id=123
     - 페이징: /api/products/?page=2&page_size=10
-    - 복합 쿼리: /api/products/?search=자전거&status=new&page=2
+    - 복합 쿼리: /api/products/?search=자전거&status=new&region_id=123&page=2
 
     성공: 상품 목록과 페이징 정보 반환
     """
@@ -147,6 +150,7 @@ def list_products(
         "search": search,
         "status": status,
         "trade_type": trade_type,
+        "region_id": region_id,
         "page": page,
         "page_size": page_size,
     }

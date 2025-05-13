@@ -36,12 +36,13 @@ services:
         reservations:
           cpus: '0.15'  # 예약 자원 감소
           memory: 128M  # 최소 필요 메모리
+    # 헬스체크 완전히 단순화
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
-      interval: 60s  # 간격 늘림
+      test: ["CMD-SHELL", "ps aux | grep '[d]aphne' || exit 1"]
+      interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s  # 시작 대기 시간 늘림
+      retries: 5
+      start_period: 40s
     logging:
       driver: "json-file"
       options:

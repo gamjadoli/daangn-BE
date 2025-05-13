@@ -31,6 +31,27 @@ class TokenSchema(Schema):
     refresh: str = Field(..., description="리프레시 토큰 (토큰 갱신에 사용)")
 
 
+class RegionSchema(Schema):
+    """동네 정보 스키마"""
+
+    id: int = Field(..., description="동네 ID")
+    name: str = Field(..., description="동네명")
+    code: str = Field(..., description="행정구역 코드")
+    priority: int = Field(
+        ..., description="동네 순서 (1: 대표 동네, 2: 두번째 동네, 3: 세번째 동네)"
+    )
+
+
+class ActiveRegionResponseSchema(Schema):
+    """활성 동네 변경 응답 스키마"""
+
+    success: bool = Field(..., description="요청 성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    current_region: Optional[RegionSchema] = Field(
+        None, description="현재 활성화된 동네 정보"
+    )
+
+
 class UserSchema(Schema):
     email: EmailStr = Field(..., description="사용자 이메일")
     nickname: str = Field(..., description="닉네임")
@@ -39,6 +60,8 @@ class UserSchema(Schema):
     is_activated: bool = Field(..., description="계정 활성화 상태")
     is_email_verified: bool = Field(..., description="이메일 인증 완료 여부")
     profile_img_url: Optional[str] = Field(None, description="프로필 이미지 URL")
+    regions: List[RegionSchema] = Field([], description="인증한 동네 목록")
+    current_region: Optional[RegionSchema] = Field(None, description="현재 선택한 동네")
 
 
 class UserResponseSchema(Schema):
@@ -49,6 +72,8 @@ class UserResponseSchema(Schema):
     is_email_verified: bool = Field(..., description="이메일 인증 완료 여부")
     rating_score: float = Field(..., description="매너온도 (36.5°C 기본값)")
     profile_img_url: Optional[str] = Field(None, description="프로필 이미지 URL")
+    regions: List[RegionSchema] = Field([], description="인증한 동네 목록")
+    current_region: Optional[RegionSchema] = Field(None, description="현재 선택한 동네")
 
 
 class BaseResponseSchema(Schema):
@@ -62,7 +87,12 @@ class BaseResponseSchema(Schema):
 class AuthResponseSchema(BaseResponseSchema):
     """인증 응답 스키마 (로그인/회원가입)"""
 
-    tokens: TokenSchema = Field(..., description="인증 토큰")
+    tokens: Optional[TokenSchema] = Field(
+        None, description="인증 토큰 (성공 시에만 제공)"
+    )
+    user: Optional[UserResponseSchema] = Field(
+        None, description="사용자 정보 (성공 시에만 제공)"
+    )
 
 
 class ErrorResponseSchema(BaseResponseSchema):

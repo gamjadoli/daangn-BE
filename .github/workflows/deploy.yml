@@ -1,9 +1,6 @@
 name: Deploy to Server
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     types:
       - closed
@@ -13,7 +10,7 @@ on:
 jobs:
   deploy:
     # develop 브랜치에서 main 브랜치로 머지된 PR이 닫혔을 때만 실행
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
 
     steps:

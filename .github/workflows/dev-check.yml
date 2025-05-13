@@ -1,15 +1,24 @@
 name: Dev Branch Migration Check
 
 on:
+  # develop 브랜치에 직접 푸시될 때 실행
   push:
     branches:
       - develop
+  # develop 브랜치로의 PR이 열리거나 업데이트될 때 실행
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
     branches:
       - develop
 
 jobs:
   migration-check:
+    # PR 이벤트의 경우 머지되지 않은 상태에서만 실행
+    # push 이벤트의 경우 항상 실행
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == false)
     runs-on: ubuntu-latest
 
     services:

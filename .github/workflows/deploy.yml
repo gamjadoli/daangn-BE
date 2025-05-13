@@ -28,7 +28,7 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.AWS_SSH_PORT }}
         script: |
-            # 배포 함수 정의 - 오류 처리를 위한 래퍼 함수
+            # 배포 함수 정의
             deploy_app() {
                 echo "===== 배포 시작: $(date) ====="
                 
@@ -38,89 +38,87 @@ jobs:
                     return 1
                 }
                 
-                # 디스크 사용량 및 컨테이너 상태 확인
-                echo "Disk usage before cleanup: $(date)" >> deploy_disk_usage.log
-                df -h / >> deploy_disk_usage.log
-                echo "=== Container Status Before Deployment $(date) ===" >> deploy_container_status.log
-                docker ps -a >> deploy_container_status.log
+                # 디스크 사용량 체크
+                echo "===== 디스크 사용량 확인 (정리 전) ====="
+                df -h /
+                
+                # 불필요한 패키지 및 임시 파일 정리
+                echo "===== 시스템 임시 파일 정리 시작 ====="
+                sudo apt-get -y autoremove
+                sudo apt-get -y autoclean
+                sudo apt-get -y clean
+                sudo journalctl --vacuum-time=1d
+                sudo find /tmp -type f -atime +3 -delete
+                sudo find /var/tmp -type f -atime +3 -delete
+                sudo find /var/log -type f -name "*.gz" -delete
+                sudo find /var/log -type f -name "*.old" -delete
+                sudo find /var/log -type f -name "*.1" -delete
+                sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
+                echo "===== 시스템 임시 파일 정리 완료 ====="
+                
+                # Docker 시스템 정리 (디스크 공간 확보를 위한 강력한 정리)
+                echo "===== Docker 시스템 정리 시작 ====="
+                # 실행 중인 컨테이너를 확인하고 필요한 경우만 중지
+                echo "실행 중인 앱 컨테이너 중지..."
+                docker ps -q | xargs -r docker stop
+                
+                # 모든 컨테이너 제거 (실행 중이 아닌 컨테이너)
+                echo "컨테이너 정리..."
+                docker ps -aq | xargs -r docker rm -f
+                
+                # 사용하지 않는 이미지, 네트워크, 볼륨 제거 (더 안전한 방식으로)
+                echo "미사용 Docker 리소스 정리..."
+                docker system prune -af --volumes
+                
+                # 데이터베이스를 제외한 모든 볼륨 정리
+                echo "불필요한 볼륨 정리..."
+                docker volume ls -q | grep -v "db_data" | xargs -r docker volume rm
+                
+                # 시스템 캐시 정리
+                echo "시스템 캐시 정리..."
+                sudo sh -c "sync; echo 1 > /proc/sys/vm/drop_caches"
+                echo "===== Docker 시스템 정리 완료 ====="
                 
                 # 코드 업데이트
-                echo "코드 업데이트 중..."
-                git stash -u  # 추적되지 않는 파일도 포함하여 stash
-                git switch main || {
-                    echo "main 브랜치로 전환 실패"
-                    git checkout -f main || {
-                        echo "강제 브랜치 전환도 실패했습니다."
-                        return 1
-                    }
-                }
+                echo "===== 코드 업데이트 ====="
+                git fetch origin main
+                git reset --hard origin/main
                 
-                # git pull 진행 - fetch & merge 방식으로 변경하여 안정성 향상
-                echo "최신 코드 가져오는 중..."
-                git fetch origin main || {
-                    echo "원격 코드 가져오기 실패"
-                    return 1
-                }
-                git merge --ff-only origin/main || {
-                    echo "코드 병합 실패"
-                    # 충돌 발생 시 강제 리셋 (데이터 손실 위험이 있지만 배포의 안정성 우선)
-                    git reset --hard origin/main || {
-                        echo "코드 리셋 실패"
-                        return 1
-                    }
-                }
+                # 최적화된 이미지 빌드를 위한 Docker Compose 실행
+                echo "===== Docker 이미지 빌드 ====="
+                # 메모리 부족 문제 해결을 위해 단일 서비스 순차 빌드
+                # 빌드 캐시를 활용하여 빌드 시간 최적화 (--no-cache 제거)
+                docker compose build redis
+                docker compose build web
+                docker compose build nginx
                 
-                # Docker 리소스 정리
-                echo "Docker 리소스 정리 중..."
-                # 별도로 명령어 실행하여 오류 발생 가능성 줄임
-                docker system prune -f --filter "until=24h" || echo "일부 리소스 정리 실패"
-                docker volume prune -f || echo "일부 볼륨 정리 실패"
+                # 서비스 실행
+                echo "===== 서비스 시작 ====="
+                docker compose up -d --force-recreate
                 
-                # 컨테이너 관리
-                echo "기존 컨테이너 정리 중..."
-                if docker ps -q | grep -q .; then
-                    docker stop $(docker ps -q) || echo "일부 컨테이너 중지 실패"
-                fi
+                # 최종 디스크 사용량 체크
+                echo "===== 디스크 사용량 확인 (배포 후) ====="
+                df -h /
                 
-                if docker ps -aq | grep -q .; then
-                    docker rm -f $(docker ps -aq) || echo "일부 컨테이너 제거 실패"
-                fi
-                
-                # Docker 서비스 배포
-                echo "Docker 서비스 배포 중..."
-                docker compose build --no-cache || {
-                    echo "Docker 이미지 빌드 실패"
-                    return 1
-                }
-                
-                docker compose up -d || {
-                    echo "Docker 컨테이너 시작 실패"
-                    return 1
-                }
-                
-                # 배포 결과 확인
-                echo "배포 결과 확인 중..."
-                sleep 10  # 컨테이너가 시작하는데 시간이 걸릴 수 있으므로 잠시 대기
-                
-                if ! docker ps | grep -q "web"; then
-                    echo "웹 서비스가 실행되고 있지 않습니다."
-                    return 1
-                fi
-                
-                # 서비스 상태 출력
-                echo "Deployment completed at $(date)"
+                # 컨테이너 상태 확인
                 docker compose ps
                 
-                # 로그 확인
-                echo "Django 로그 확인 중..."
-                docker compose logs --tail=20 web || echo "로그를 가져올 수 없습니다."
-                
-                echo "===== 배포 성공: $(date) ====="
+                # 정상적으로 실행 중인지 확인
+                if ! docker ps | grep -q "web"; then
+                    echo "===== 오류: 웹 서비스가 실행되지 않았습니다 ====="
+                    docker compose logs web
+                    return 1
+                fi
+
+                echo "===== 배포 완료: $(date) ====="
                 return 0
             }
             
-            # 배포 함수 실행 및 결과 확인
-            if deploy_app; then
+            # 배포 함수 실행
+            deploy_app
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
                 echo "배포가 성공적으로 완료되었습니다."
                 exit 0
             else

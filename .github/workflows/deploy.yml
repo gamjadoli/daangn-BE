@@ -56,6 +56,16 @@ jobs:
                 sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \;
                 echo "===== 시스템 임시 파일 정리 완료 ====="
                 
+                # pyproject.toml 파일 수정 (package-mode 속성 제거)
+                echo "===== pyproject.toml 파일 수정 ====="
+                # 파일 백업
+                cp pyproject.toml pyproject.toml.bak
+                # package-mode 속성 제거
+                sed -i '/package-mode/d' pyproject.toml
+                # 수정된 파일 확인
+                echo "PyProject.toml 파일 수정됨:"
+                grep -n "package-mode" pyproject.toml || echo "package-mode 속성이 성공적으로 제거됨"
+                
                 # Docker 시스템 정리 (디스크 공간 확보를 위한 강력한 정리)
                 echo "===== Docker 시스템 정리 시작 ====="
                 # 실행 중인 컨테이너를 확인하고 필요한 경우만 중지

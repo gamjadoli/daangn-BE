@@ -3,26 +3,26 @@ services:
     build:
       context: .
       dockerfile: django/Dockerfile
-    restart: always
+    restart: on-failure:5  # 무한 재시작 방지
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              daphne -b 0.0.0.0 -p 8000 a_core.asgi:application"
     ports:
-      - "8000:8000"   # 포트 바인딩 명시적으로 추가
+      - "8000:8000"
     volumes:
       - ./django/:/app/
       - static_volume:/app/static
       - media_volume:/app/media
-      - /app/__pycache__
-      - /app/*/__pycache__
-      - /app/*/*/__pycache__
-      - /app/*/*/*/__pycache__
+      # 캐시 관련 볼륨 제거 - 메모리 절약
     env_file:
       - ./django/.env
     environment:
       - DJANGO_SETTINGS_MODULE=a_core.settings.product
       - PYTHONDONTWRITEBYTECODE=1
+      # 메모리 최적화 환경변수 추가
+      - PYTHONUNBUFFERED=1
+      - PYTHONOPTIMIZE=1
     networks:
       - backend-network
     depends_on:
@@ -30,26 +30,26 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 512M
+          cpus: '0.35'  # CPU 제한 감소 
+          memory: 300M  # 메모리 제한 감소
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.15'  # 예약 자원 감소
+          memory: 128M  # 최소 필요 메모리
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
+      interval: 60s  # 간격 늘림
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s  # 시작 대기 시간 늘림
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "5m"  # 로그 크기 감소
+        max-file: "1"   # 백업 파일 감소
 
   nginx:
     image: nginx:1.21-alpine
-    restart: always
+    restart: on-failure:5  # 무한 재시작 방지
     ports:
       - "80:80"
       - "443:443"
@@ -60,47 +60,33 @@ services:
       - media_volume:/app/media
     depends_on:
       - web
-    networks:
-      - backend-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  redis:
-    image: redis:latest
-    restart: always
-    ports:
-      - "6379:6379"
-    networks:
-      - backend-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  cleaner:
-    image: docker:cli
-    restart: "no"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: >
-      sh -c "docker system prune -af --volumes && 
-             docker builder prune -af"
-    depends_on:
-      - web
-      - nginx
     deploy:
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3
       resources:
         limits:
-          memory: 50M
-    labels:
-      - "com.docker.compose.cron.schedule=0 3 * * 1"
+          memory: 128M  # Nginx 메모리 제한
+    networks:
+      - backend-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"  # 로그 크기 감소
+        max-file: "1"   # 백업 파일 감소
+
+  redis:
+    image: redis:6-alpine  # 더 가벼운 alpine 버전 사용
+    restart: on-failure:5
+    command: redis-server --save 900 1 --loglevel warning --maxmemory 64mb --maxmemory-policy volatile-lru
+    networks:
+      - backend-network
+    deploy:
+      resources:
+        limits:
+          memory: 80M  # Redis 메모리 제한
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "2m"
+        max-file: "1"
 
 volumes:
   static_volume:

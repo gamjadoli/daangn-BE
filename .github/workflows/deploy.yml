@@ -42,25 +42,32 @@ jobs:
             echo "Disk usage before cleanup: $(date)" >> deploy_disk_usage.log
             df -h / >> deploy_disk_usage.log
             
-            # 리소스 정리 (사용하지 않는 이미지와 볼륨만 삭제)
-            echo "Cleaning unused Docker resources..."
-            docker system prune -f --filter "until=24h"
+            # 모든 컨테이너 상태 확인 및 기록
+            echo "=== Container Status Before Deployment $(date) ===" >> deploy_container_status.log
+            docker ps -a >> deploy_container_status.log
             
-            # 웹 컨테이너 실행 상태 확인
-            CONTAINER_RUNNING=$(docker ps -q -f name=web)
-            if [ -n "$CONTAINER_RUNNING" ]; then
-              echo "Web container is running, stopping it first..."
-              docker stop $(docker ps -q -f name=web)
-              docker rm $(docker ps -aq -f name=web)
+            # 사용하지 않는 Docker 리소스 정리 (주의해서 실행)
+            echo "Cleaning unused Docker resources..."
+            docker system prune -f --volumes --filter "until=24h"
+            
+            # 실행 중인 모든 컨테이너 중지 및 제거 (clean start)
+            echo "Stopping all running containers..."
+            if [ "$(docker ps -q)" ]; then
+              docker stop $(docker ps -q)
+            fi
+            
+            echo "Removing all containers..."
+            if [ "$(docker ps -aq)" ]; then
+              docker rm $(docker ps -aq)
             fi
             
             # 새 이미지 빌드
-            echo "Building new image for web service..."
-            docker compose build web
+            echo "Building new images..."
+            docker compose build
             
-            # 웹 서비스 시작
-            echo "Starting web service..."
-            docker compose up -d web
+            # 모든 서비스 시작
+            echo "Starting all services..."
+            docker compose up -d
             
             # 서비스 상태 확인
             echo "Deployment completed at $(date)"

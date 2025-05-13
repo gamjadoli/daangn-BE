@@ -66,8 +66,13 @@ jobs:
                 echo "PyProject.toml 파일 수정됨:"
                 grep -n "package-mode" pyproject.toml || echo "package-mode 속성이 성공적으로 제거됨"
                 
-                # Docker 시스템 정리 (더 안전한 접근 방식)
+                # Docker 시스템 정리 (더 안전하고 확실한 접근 방식)
                 echo "===== Docker 시스템 정리 시작 ====="
+                
+                # cleaner 컨테이너를 직접 명시적으로 강제 제거 (핵심 문제 해결)
+                echo "기존 cleaner 컨테이너 제거..."
+                docker rm -f daangn-be-cleaner || true
+                
                 # 먼저 docker-compose down으로 정상 종료 시도
                 echo "기존 서비스 정상 종료 시도..."
                 docker compose down || true

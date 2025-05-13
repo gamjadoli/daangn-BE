@@ -21,6 +21,21 @@ class ProductService:
     @transaction.atomic
     def create_product(user_id: int, data: dict, images: list = None) -> dict:
         try:
+            # 사용자 인증 동네 확인
+            from a_apis.models.region import EupmyeondongRegion, UserActivityRegion
+
+            # 사용자가 선택한 동네가 인증된 동네인지 확인
+            region_id = data.region_id
+            user_region = UserActivityRegion.objects.filter(
+                user_id=user_id, activity_area_id=region_id
+            ).first()
+
+            if not user_region:
+                return {
+                    "success": False,
+                    "message": "인증된 동네가 아닙니다. 동네 인증 후 다시 시도해주세요.",
+                }
+
             # 거래 위치 생성
             meeting_point = Point(
                 data.meeting_location.longitude,
@@ -28,7 +43,7 @@ class ProductService:
                 srid=4326,
             )
 
-            # 상품 생성
+            # 상품 생성 (region 필드 추가)
             product = Product.objects.create(
                 user_id=user_id,
                 title=data.title,
@@ -36,10 +51,11 @@ class ProductService:
                 price=data.price if data.trade_type == "sale" else None,
                 accept_price_offer=data.accept_price_offer,
                 description=data.description,
-                category_id=data.category_id,  # 카테고리 필드 추가
+                category_id=data.category_id,
+                region_id=region_id,  # 선택한 동네 정보 저장
                 meeting_location=meeting_point,
                 location_description=data.meeting_location.description,
-                refresh_at=timezone.now(),  # 등록 시점으로 refresh_at 설정
+                refresh_at=timezone.now(),
             )
 
             # 이미지 처리
@@ -62,7 +78,9 @@ class ProductService:
         """상품 목록 조회 서비스"""
         try:
             # 기본 쿼리셋
-            queryset = Product.objects.select_related("user").order_by("-refresh_at")
+            queryset = Product.objects.select_related("user", "region").order_by(
+                "-refresh_at"
+            )
 
             # 필터링 적용 (있는 경우)
             if filter_params:
@@ -79,6 +97,27 @@ class ProductService:
                     queryset = queryset.filter(status=filter_params["status"])
                 if filter_params.get("trade_type"):
                     queryset = queryset.filter(trade_type=filter_params["trade_type"])
+
+                # 동네 필터링
+                region_id = filter_params.get("region_id")
+                if region_id:
+                    # 특정 동네 ID가 제공된 경우 해당 동네의 상품만 필터링
+                    queryset = queryset.filter(region_id=region_id)
+                elif user_id:
+                    # 동네 ID가 제공되지 않았고, 사용자 ID가 있는 경우
+                    # 사용자의 활성 동네(우선순위 1)를 찾아 해당 동네의 상품만 필터링
+                    from a_apis.models.region import UserActivityRegion
+
+                    active_region = (
+                        UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                        .select_related("activity_area")
+                        .first()
+                    )
+
+                    if active_region:
+                        queryset = queryset.filter(
+                            region_id=active_region.activity_area.id
+                        )
 
             # 페이지네이션 파라미터
             page = int(filter_params.get("page", 1))
@@ -131,6 +170,9 @@ class ProductService:
                         # 이미지 URL 조회 실패 시 None으로 처리
                         pass
 
+                # 동네 정보 추가
+                region_name = product.region.name if product.region else None
+
                 product_list.append(
                     {
                         "id": product.id,
@@ -148,12 +190,37 @@ class ProductService:
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,
+                        "region_name": region_name,
                     }
                 )
 
+            # 동네 필터링 메시지 구성
+            message = "상품 목록이 조회되었습니다."
+            if filter_params and filter_params.get("region_id"):
+                try:
+                    from a_apis.models.region import EupmyeondongRegion
+
+                    region = EupmyeondongRegion.objects.get(
+                        id=filter_params["region_id"]
+                    )
+                    message = f"{region.name} 지역의 상품 목록이 조회되었습니다."
+                except Exception:
+                    pass
+            elif user_id:
+                from a_apis.models.region import UserActivityRegion
+
+                active_region = (
+                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+
+                if active_region:
+                    message = f"{active_region.activity_area.name} 지역의 상품 목록이 조회되었습니다."
+
             return {
                 "success": True,
-                "message": "상품 목록이 조회되었습니다.",
+                "message": message,
                 "data": product_list,
                 "total_count": total_count,
                 "page": page,

@@ -14,6 +14,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.gis.geos import Point
+from django.db import transaction
 
 User = get_user_model()
 
@@ -154,6 +155,47 @@ class UserService:
         if user:
             login(request, user)
             refresh = RefreshToken.for_user(user)
+
+            # 사용자의 인증된 동네 목록 가져오기
+            user_regions = []
+            current_region = None
+
+            user_activity_regions = (
+                UserActivityRegion.objects.filter(user=user)
+                .select_related("activity_area")
+                .order_by("priority")
+            )
+
+            for user_region in user_activity_regions:
+                region_data = {
+                    "id": user_region.activity_area.id,
+                    "name": user_region.activity_area.name,
+                    "code": user_region.activity_area.code,
+                    "priority": user_region.priority,
+                }
+                user_regions.append(region_data)
+
+                # 우선순위가 1인 동네(대표 동네)를 현재 선택된 동네로 설정
+                if user_region.priority == 1:
+                    current_region = region_data
+
+            # 응답 데이터 구성
+            user_data = {
+                "email": user.email,
+                "nickname": user.nickname,
+                "phone_number": user.phone_number,
+                "is_activated": user.is_active,  # is_active 필드 사용
+                "is_email_verified": user.is_email_verified,
+                "rating_score": getattr(user, "rating_score", 36.5),  # 기본값 36.5
+                "profile_img_url": (
+                    user.profile_img.url
+                    if hasattr(user, "profile_img") and user.profile_img
+                    else None
+                ),
+                "regions": user_regions,
+                "current_region": current_region,
+            }
+
             return {
                 "success": True,
                 "message": "로그인 되었습니다.",
@@ -161,6 +203,7 @@ class UserService:
                     "access": str(refresh.access_token),
                     "refresh": str(refresh),
                 },
+                "user": user_data,
             }
         return {"success": False, "message": "이메일 또는 비밀번호가 잘못되었습니다."}
 
@@ -196,10 +239,50 @@ class UserService:
 
             user = User.objects.get(id=user_id)
 
+            # 사용자의 인증된 동네 목록 가져오기
+            user_regions = []
+            current_region = None
+
+            user_activity_regions = (
+                UserActivityRegion.objects.filter(user=user)
+                .select_related("activity_area")
+                .order_by("priority")
+            )
+
+            for user_region in user_activity_regions:
+                region_data = {
+                    "id": user_region.activity_area.id,
+                    "name": user_region.activity_area.name,
+                    "code": user_region.activity_area.code,
+                    "priority": user_region.priority,
+                }
+                user_regions.append(region_data)
+
+                # 우선순위가 1인 동네(대표 동네)를 현재 선택된 동네로 설정
+                if user_region.priority == 1:
+                    current_region = region_data
+
+            # 응답 데이터 구성
+            user_data = {
+                "email": user.email,
+                "nickname": user.nickname,
+                "phone_number": user.phone_number,
+                "is_activated": user.is_active,
+                "is_email_verified": user.is_email_verified,
+                "rating_score": getattr(user, "rating_score", 36.5),  # 기본값 36.5
+                "profile_img_url": (
+                    user.profile_img.url
+                    if hasattr(user, "profile_img") and user.profile_img
+                    else None
+                ),
+                "regions": user_regions,
+                "current_region": current_region,
+            }
+
             return {
                 "success": True,
                 "message": "인증된 사용자입니다.",
-                "user": {"email": user.email},
+                "user": user_data,
             }
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -532,4 +615,92 @@ class UserService:
                 "success": False,
                 "message": f"매너 평가 목록 조회 중 오류가 발생했습니다: {str(e)}",
                 "data": [],
+            }
+
+    @staticmethod
+    def change_active_region(request, region_id: int):
+        """활성 동네 변경 서비스
+
+        인증한 동네 중 하나를 활성 동네(기본 동네)로 설정합니다.
+
+        Args:
+            request: HTTP 요청 객체
+            region_id: 활성화할 동네 ID
+        """
+        try:
+            # 인증된 사용자 확인
+            user = None
+            if hasattr(request, "user") and isinstance(request.user, User):
+                user = request.user
+            elif hasattr(request, "auth") and request.auth:
+                from rest_framework_simplejwt.tokens import AccessToken
+
+                access_token = AccessToken(request.auth)
+                user_id = access_token["user_id"]
+                user = User.objects.get(id=user_id)
+
+            if not user:
+                return {"success": False, "message": "인증되지 않은 사용자입니다."}
+
+            # 해당 동네가 사용자의 인증된 동네인지 확인
+            user_region = UserActivityRegion.objects.filter(
+                user=user, activity_area_id=region_id
+            ).first()
+
+            if not user_region:
+                return {"success": False, "message": "인증되지 않은 동네입니다."}
+
+            # 이미 활성 동네(우선순위 1)인 경우
+            if user_region.priority == 1:
+                current_region = {
+                    "id": user_region.activity_area.id,
+                    "name": user_region.activity_area.name,
+                    "code": user_region.activity_area.code,
+                    "priority": user_region.priority,
+                }
+                return {
+                    "success": True,
+                    "message": "이미 활성화된 동네입니다.",
+                    "current_region": current_region,
+                }
+
+            # 동네 우선순위 변경 (현재 우선순위와 1순위 동네 교체)
+            current_priority = user_region.priority
+
+            # 기존 1순위 동네 찾기
+            previous_primary_region = UserActivityRegion.objects.filter(
+                user=user, priority=1
+            ).first()
+
+            # 트랜잭션으로 우선순위 교체
+            with transaction.atomic():
+                if previous_primary_region:
+                    previous_primary_region.priority = current_priority
+                    previous_primary_region.save(
+                        update_fields=["priority", "updated_at"]
+                    )
+
+                user_region.priority = 1
+                user_region.save(update_fields=["priority", "updated_at"])
+
+            # 새로 설정된 활성 동네 정보만 반환
+            current_region = {
+                "id": user_region.activity_area.id,
+                "name": user_region.activity_area.name,
+                "code": user_region.activity_area.code,
+                "priority": 1,  # 이제 우선순위가 1이 됨
+            }
+
+            return {
+                "success": True,
+                "message": f"활성 동네가 '{user_region.activity_area.name}'(으)로 변경되었습니다.",
+                "current_region": current_region,
+            }
+
+        except User.DoesNotExist:
+            return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"동네 변경 중 오류가 발생했습니다: {str(e)}",
             }

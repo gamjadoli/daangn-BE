@@ -26,7 +26,8 @@ services:
     networks:
       - backend-network
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy  # Redis가 건강한 상태일 때만 시작
     deploy:
       resources:
         limits:
@@ -36,7 +37,7 @@ services:
           cpus: '0.15'  # 예약 자원 감소
           memory: 128M  # 최소 필요 메모리
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 60s  # 간격 늘림
       timeout: 10s
       retries: 3
@@ -76,6 +77,8 @@ services:
     image: redis:alpine
     restart: always  # 항상 재시작되도록 설정
     command: redis-server  # 가장 기본적인 명령어
+    ports:
+      - "6379:6379"  # Redis 포트 노출
     networks:
       - backend-network
     healthcheck:
@@ -83,6 +86,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s  # 시작 대기 시간 추가
     logging:
       driver: "json-file"
       options:

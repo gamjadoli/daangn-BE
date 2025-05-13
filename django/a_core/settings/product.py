@@ -10,6 +10,43 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "13.125.219.86",  # EC2 IP
 ]
+
+# Redis 설정 업데이트
+REDIS_HOST = os.getenv(
+    "AWS_ELASTICACHE_ENDPOINT", "redis"
+)  # 환경변수 없으면 docker 서비스명 사용
+REDIS_PORT = 6379
+
+# Channel Layer 설정 수정 (Redis 호스트 업데이트)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "capacity": 100,  # 채널 레이어 용량 제한
+            "expiry": 60,  # 메시지 만료 시간
+        },
+    },
+}
+
+# 캐시 설정
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_TIMEOUT": 5,
+            "SOCKET_CONNECT_TIMEOUT": 5,
+        },
+        "KEY_PREFIX": "dangma",
+    }
+}
+
+# 세션 설정 최적화 (Redis 저장)
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
 CORS_ALLOWED_ORIGINS = [
     "https://dangma.store",
     "https://www.dangma.store",
@@ -71,11 +108,16 @@ DATABASES = {
         "PASSWORD": os.getenv("AWS_RDS_PASSWORD"),
         "HOST": os.getenv("AWS_RDS_HOST"),
         "PORT": os.getenv("AWS_RDS_PORT"),
+        "CONN_MAX_AGE": 60,  # 연결 재사용 (초)
+        "CONN_HEALTH_CHECKS": True,  # 연결 상태 확인
+        "OPTIONS": {
+            "connect_timeout": 10,  # 연결 타임아웃
+        },
     }
 }
 
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB limit
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB limit
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB로 제한
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB로 제한
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_S3_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_S3_SECRET_ACCESS_KEY", "")
@@ -116,23 +158,26 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(message)s"},
+        "simple": {"format": "%(levelname)s %(message)s"},
     },
     "handlers": {
         "console": {
-            "class": "logging.StreamHandler",  # 표준 출력
-            "formatter": "verbose",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
         },
     },
     "root": {
         "handlers": ["console"],
-        "level": "INFO",  # INFO 이상 레벨 로그를 stdout에 출력
+        "level": "WARNING",  # 경고 수준 이상만 로깅
     },
     "loggers": {
         "django": {
             "handlers": ["console"],
             "propagate": False,
-            "level": "INFO",
+            "level": "WARNING",
         },
     },
 }
+
+# 기타 메모리 최적화 설정
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000

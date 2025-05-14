@@ -36,8 +36,8 @@ CACHES = {
         "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
         "OPTIONS": {
             # "CLIENT_CLASS": "django_redis.client.DefaultClient", # 호환성 문제로 제거
-            "SOCKET_TIMEOUT": 5,
-            "SOCKET_CONNECT_TIMEOUT": 5,
+            "socket_timeout": 5,  # 대문자 SOCKET_TIMEOUT에서 소문자로 수정
+            "socket_connect_timeout": 5,  # 대문자에서 소문자로 수정
         },
         "KEY_PREFIX": "dangma",
     }

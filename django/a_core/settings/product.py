@@ -57,6 +57,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://dangma.store",
     "https://www.dangma.store",
     "https://api.dangma.store",
+    "https://13.125.219.86",  # EC2 IP (HTTPS)
     "http://localhost:5173",  # Vite dev server
     "http://localhost:3000",  # React / Next.js dev server
     "http://localhost:8000",  # Django dev server
@@ -64,11 +65,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True  # 쿠키 및 인증 헤더를 허용합니다.
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True  # HTTPS로 강제 리디렉션 활성화
+SESSION_COOKIE_SECURE = True  # HTTPS에서만 세션 쿠키 허용
+CSRF_COOKIE_SECURE = True  # HTTPS에서만 CSRF 쿠키 허용
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SECURE = True  # HTTPS에서만 CSRF 쿠키 전송
+CSRF_COOKIE_HTTPONLY = False  # 자바스크립트에서 CSRF 토큰 접근 허용
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_DOMAIN = ".dangma.store"
 CSRF_COOKIE_DOMAIN = ".dangma.store"
@@ -94,6 +95,13 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
+# CSRF 기본 설정
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_NAME = "csrftoken"
+
+# SameSite 설정
+SESSION_COOKIE_SAMESITE = "None"  # Cross-Origin 요청 허용
+CSRF_COOKIE_SAMESITE = "None"  # Cross-Origin 요청 허용
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases

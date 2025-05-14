@@ -11,10 +11,8 @@ ALLOWED_HOSTS = [
     "13.125.219.86",  # EC2 IP
 ]
 
-# Redis 설정 업데이트
-REDIS_HOST = os.getenv(
-    "AWS_ELASTICACHE_ENDPOINT", "redis"
-)  # 환경변수 없으면 docker 서비스명 사용
+# Redis 설정 업데이트 - 명시적으로 'redis' 설정
+REDIS_HOST = "redis"  # Docker 서비스명으로 고정
 REDIS_PORT = 6379
 
 # Channel Layer 설정 수정 (Redis 호스트 업데이트)

@@ -174,7 +174,7 @@ class ProductImage(CommonModel):
         ordering = ["created_at"]
 
     def __str__(self):
-        return f"{self.product.name} 이미지"
+        return f"{self.product.title} 이미지"  # name을 title로 변경
 
 
 class InterestProduct(CommonModel):

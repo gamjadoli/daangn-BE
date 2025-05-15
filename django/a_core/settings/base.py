@@ -56,6 +56,7 @@ DEFAULT_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.gis",  # GIS 기능을 위해 추가
 ]
 
 # staticfiles 앱을 DEFAULT_APPS에서 제거하고 나중에 추가

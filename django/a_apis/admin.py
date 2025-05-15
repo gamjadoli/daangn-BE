@@ -77,6 +77,7 @@ class ProductAdmin(admin.ModelAdmin):
                     "price",
                     "accept_price_offer",
                     "status",
+                    "region",  # 지역 필드 추가
                 )
             },
         ),
@@ -107,8 +108,12 @@ class ProductAdmin(admin.ModelAdmin):
 
     inlines = [ProductImageInline]
 
+    raw_id_fields = ("user", "region")  # region을 raw_id_fields에 추가
+
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("user")
+        return (
+            super().get_queryset(request).select_related("user", "region")
+        )  # region도 select_related에 추가
 
 
 @admin.register(ProductImage)
@@ -129,28 +134,33 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 
 @admin.register(SidoRegion)
-class SidoRegionAdmin(GISModelAdmin):
+class SidoRegionAdmin(GISModelAdmin):  # ModelAdmin에서 GISModelAdmin으로 다시 변경
     list_display = ("name", "code", "created_at", "updated_at")
     search_fields = ("name", "code")
     ordering = ("code",)
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(SigunguRegion)
-class SigunguRegionAdmin(GISModelAdmin):
+class SigunguRegionAdmin(GISModelAdmin):  # ModelAdmin에서 GISModelAdmin으로 다시 변경
     list_display = ("name", "code", "sido", "created_at", "updated_at")
     search_fields = ("name", "code", "sido__name")
     list_filter = ("sido",)
     ordering = ("code",)
     autocomplete_fields = ["sido"]
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(EupmyeondongRegion)
-class EupmyeondongRegionAdmin(GISModelAdmin):
+class EupmyeondongRegionAdmin(
+    GISModelAdmin
+):  # ModelAdmin에서 GISModelAdmin으로 다시 변경
     list_display = ("name", "code", "sigungu", "created_at", "updated_at")
     search_fields = ("name", "code", "sigungu__name", "sigungu__sido__name")
     list_filter = ("sigungu__sido",)
     ordering = ("code",)
     autocomplete_fields = ["sigungu"]
+    readonly_fields = ("created_at", "updated_at")
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("sigungu", "sigungu__sido")
@@ -174,6 +184,9 @@ class UserActivityRegionAdmin(GISModelAdmin):
     list_filter = ("priority", "verified_at")
     ordering = ("user", "priority")
     raw_id_fields = ("user", "activity_area")
+    readonly_fields = ("verified_at", "last_verified_at")
+
+    # gis_widget 속성 제거 (올바르지 않은 설정)
 
     def get_region_name(self, obj):
         return f"{obj.activity_area.sigungu.sido.name} {obj.activity_area.sigungu.name} {obj.activity_area.name}"

@@ -20,7 +20,7 @@ from ninja import Query, Router
 router = Router(auth=AuthBearer())
 
 
-@router.post("/create", response=CreateChatRoomResponseSchema)
+@router.post("", response=CreateChatRoomResponseSchema)
 def create_chat_room(request, product_id: int):
     """
     상품에 대한 새 채팅방 생성 API
@@ -32,7 +32,7 @@ def create_chat_room(request, product_id: int):
     return ChatService.create_chat_room(product_id=product_id, user_id=request.user.id)
 
 
-@router.get("/", response=ChatRoomListResponseSchema)
+@router.get("", response=ChatRoomListResponseSchema)
 def get_chat_rooms(request, page: int = 1, page_size: int = 20):
     """
     내 채팅방 목록 조회 API
@@ -59,13 +59,20 @@ def get_chat_room_detail(request, chat_room_id: int):
 
 
 @router.get("/{chat_room_id}/messages", response=MessageListResponseSchema)
-def get_chat_messages(request, chat_room_id: int, page: int = 1, page_size: int = 20):
+def get_chat_messages(
+    request, chat_room_id: int, page: int = 1, page_size: int = 20, sort: str = "newest"
+):
     """
     채팅방 메시지 조회 API
 
     채팅방 메시지 목록 조회.
     최신순 정렬.
     API 호출 시 읽음 상태 자동 갱신.
+
+    쿼리 파라미터:
+    - page: 페이지 번호 (기본값: 1)
+    - page_size: 페이지 크기 (기본값: 20)
+    - sort: 정렬 방식 (newest: 최신순, oldest: 과거순, 기본값: newest)
     """
     return ChatService.get_chat_messages(
         chat_room_id=chat_room_id,
@@ -136,7 +143,7 @@ def get_appointment(request, appointment_id: int):
     )
 
 
-@router.post(
+@router.patch(
     "/appointments/{appointment_id}/status", response=TradeAppointmentResponseSchema
 )
 def update_appointment_status(

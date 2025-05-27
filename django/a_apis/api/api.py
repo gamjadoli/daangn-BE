@@ -15,12 +15,10 @@ api = NinjaAPI(
 )
 
 
-api.add_router("/users/", user_router, tags=["Users"])
-api.add_router("/users/", user_public_router, tags=["Users"])
-api.add_router("/", health_router, tags=["Test"])
-api.add_router("/regions/", region_router, tags=["Regions"])
-api.add_router(
-    "/public/regions/", region_public_router, tags=["Regions"]
-)  # 공개 지역 API 추가
-api.add_router("/products/", product_router, tags=["Products"])
-api.add_router("/chats/", chat_router, tags=["chat"])
+api.add_router("/users", user_router, tags=["Users"])
+api.add_router("/users", user_public_router, tags=["Users"])
+api.add_router("/health-checks", health_router, tags=["Health"])
+api.add_router("/regions", region_router, tags=["Regions"])
+api.add_router("/public-regions", region_public_router, tags=["Public Regions"])
+api.add_router("/products", product_router, tags=["Products"])
+api.add_router("/chats", chat_router, tags=["Chats"])

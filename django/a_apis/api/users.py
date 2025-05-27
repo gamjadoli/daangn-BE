@@ -67,7 +67,7 @@ def refresh_token(request, data: RefreshTokenSchema):
     return UserService.refresh_token(data.refresh)
 
 
-@public_router.post("/request-email-verification", response=ErrorResponseSchema)
+@public_router.post("/email-verifications", response=ErrorResponseSchema)
 def request_email_verification(request, data: EmailVerificationRequestSchema):
     """
     이메일 인증 요청 API
@@ -80,8 +80,8 @@ def request_email_verification(request, data: EmailVerificationRequestSchema):
     return EmailService.send_verification_email(data.email)
 
 
-@public_router.post(
-    "/verify-email",
+@public_router.put(
+    "/email-verifications",
     response={
         200: ErrorResponseSchema,
         400: ErrorResponseSchema,

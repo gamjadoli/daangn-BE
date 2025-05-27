@@ -3,6 +3,6 @@ from ninja import Router
 router = Router()
 
 
-@router.get("/health")
+@router.get("")
 def health_check(request):
     return {"status": "ok"}

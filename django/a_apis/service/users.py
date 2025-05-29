@@ -226,6 +226,32 @@ class UserService:
             return {"success": False, "message": "유효하지 않은 리프레시 토큰입니다."}
 
     @staticmethod
+    def logout_user(data):
+        """로그아웃 서비스
+
+        Args:
+            data: LogoutSchema 데이터 (refresh_token 포함)
+
+        Returns:
+            dict: 처리 결과 메시지
+        """
+        try:
+            # 리프레시 토큰으로 RefreshToken 객체 생성
+            refresh_token = RefreshToken(data.refresh_token)
+
+            # 토큰 블랙리스트에 추가 (토큰 무효화)
+            refresh_token.blacklist()
+
+            return {"success": True, "message": "로그아웃이 완료되었습니다."}
+        except TokenError as e:
+            return {"success": False, "message": "유효하지 않은 리프레시 토큰입니다."}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"로그아웃 처리 중 오류가 발생했습니다: {str(e)}",
+            }
+
+    @staticmethod
     def get_user(request):
         try:
             user = request.auth

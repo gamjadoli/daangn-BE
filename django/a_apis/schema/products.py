@@ -146,6 +146,7 @@ class ProductListItemSchema(Schema):
 
     id: int = Field(..., description="상품 ID")
     title: str = Field(..., description="상품 제목")
+    description: str = Field(..., description="상품 설명")
     price: Optional[int] = Field(None, description="판매 가격")
     status: str = Field(..., description="상품 상태 (new, reserved, soldout)")
     trade_type: str = Field(..., description="거래 방식 (sale, share)")
@@ -153,7 +154,9 @@ class ProductListItemSchema(Schema):
     refresh_at: Optional[str] = Field(None, description="끌어올린 일시")
     image_url: Optional[str] = Field(None, description="대표 이미지 URL")
     seller_nickname: str = Field(..., description="판매자 닉네임")
-    location_description: Optional[str] = Field(None, description="거래 장소 설명")
+    meeting_location: Optional[LocationSchema] = Field(
+        None, description="거래 희망 위치 (위도, 경도, 설명, 거리 포함)"
+    )
     interest_count: int = Field(0, description="관심 등록 수")
     chat_count: int = Field(0, description="활성화된 채팅방 수")
     region_name: Optional[str] = Field(None, description="상품이 등록된 동네명")

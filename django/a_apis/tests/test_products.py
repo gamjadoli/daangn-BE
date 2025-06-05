@@ -1373,3 +1373,165 @@ class ProductDistanceCalculationTestCase(TestCase):
 
         print(f"API 응답에서 받은 거리: {distance_text}")
         self.assertTrue("km" in distance_text or "m" in distance_text)
+
+    def test_meeting_location_structure_integration(self):
+        """meeting_location 구조 통합 테스트: 모든 위치 정보가 하나의 객체에 포함되는지 확인"""
+        from a_apis.service.products import ProductService
+
+        # 거래 위치 및 설명 설정
+        meeting_point = Point(127.0400, 37.5020, srid=4326)  # 강남역 근처
+        location_description = "강남역 2번 출구 스타벅스 앞"
+
+        self.product_without_location.meeting_location = meeting_point
+        self.product_without_location.location_description = location_description
+        self.product_without_location.save()
+
+        # ProductService를 통해 상품 상세 정보 조회
+        result = ProductService._product_to_detail(
+            self.product_without_location, self.user.id
+        )
+
+        # meeting_location 객체 구조 검증
+        self.assertIn("meeting_location", result)
+        meeting_location = result["meeting_location"]
+
+        # 모든 필수 필드가 meeting_location 객체 내에 포함되어야 함
+        self.assertIn("latitude", meeting_location)
+        self.assertIn("longitude", meeting_location)
+        self.assertIn("description", meeting_location)
+        self.assertIn("distance_text", meeting_location)
+
+        # 각 필드의 값 검증
+        self.assertEqual(meeting_location["latitude"], 37.5020)
+        self.assertEqual(meeting_location["longitude"], 127.0400)
+        self.assertEqual(meeting_location["description"], location_description)
+        self.assertIsNotNone(meeting_location["distance_text"])
+
+        # 거리 정보 형식 검증
+        distance_text = meeting_location["distance_text"]
+        self.assertTrue("km" in distance_text or "m" in distance_text)
+
+        print(f"meeting_location 객체 구조: {meeting_location}")
+        print(f"위도: {meeting_location['latitude']}")
+        print(f"경도: {meeting_location['longitude']}")
+        print(f"설명: {meeting_location['description']}")
+        print(f"거리: {meeting_location['distance_text']}")
+
+    def test_meeting_location_structure_in_product_list_apis(self):
+        """상품 목록 조회 API들에서 meeting_location 구조 통합 테스트"""
+        from a_apis.service.products import ProductService
+
+        # 거래 위치 및 설명 설정
+        meeting_point = Point(127.0363, 37.5009, srid=4326)  # 강남역
+        location_description = "강남역 1번 출구"
+
+        self.product_without_location.meeting_location = meeting_point
+        self.product_without_location.location_description = location_description
+        self.product_without_location.save()
+
+        # 1. 일반 상품 목록 조회 테스트
+        products_result = ProductService.get_products(user_id=self.user.id)
+
+        self.assertTrue(products_result["success"])
+        products = products_result["data"]["products"]
+        self.assertGreater(len(products), 0)
+
+        # 첫 번째 상품의 meeting_location 구조 검증
+        product = products[0]
+        self.assertIn("meeting_location", product)
+        meeting_location = product["meeting_location"]
+
+        # 모든 필수 필드 확인
+        required_fields = ["latitude", "longitude", "description", "distance_text"]
+        for field in required_fields:
+            self.assertIn(
+                field, meeting_location, f"meeting_location에 {field} 필드가 없습니다"
+            )
+
+        # 값 검증
+        self.assertEqual(meeting_location["latitude"], 37.5009)
+        self.assertEqual(meeting_location["longitude"], 127.0363)
+        self.assertEqual(meeting_location["description"], location_description)
+        self.assertIsNotNone(meeting_location["distance_text"])
+
+        print(f"상품 목록에서 meeting_location 구조: {meeting_location}")
+
+        # 2. 내 상품 목록 조회 테스트
+        user_products_result = ProductService.get_user_products(user_id=self.user.id)
+
+        self.assertTrue(user_products_result["success"])
+        user_products = user_products_result["data"]["products"]
+        self.assertGreater(len(user_products), 0)
+
+        # 내 상품에서도 동일한 구조 확인
+        user_product = user_products[0]
+        self.assertIn("meeting_location", user_product)
+        user_meeting_location = user_product["meeting_location"]
+
+        for field in required_fields:
+            self.assertIn(
+                field,
+                user_meeting_location,
+                f"내 상품의 meeting_location에 {field} 필드가 없습니다",
+            )
+
+        print(f"내 상품에서 meeting_location 구조: {user_meeting_location}")
+
+    def test_meeting_location_structure_without_distance(self):
+        """인증 동네가 없을 때 meeting_location 구조 테스트 (distance_text가 None)"""
+        from a_apis.service.products import ProductService
+
+        # 인증 동네가 없는 사용자 생성
+        user_without_region = User.objects.create_user(
+            username="noregion@example.com",
+            email="noregion@example.com",
+            password="testpassword123",
+            nickname="동네없는유저",
+            phone_number="01011111111",
+            is_email_verified=True,
+        )
+
+        # 거래 위치 설정
+        meeting_point = Point(127.0400, 37.5020, srid=4326)
+        location_description = "강남역 2번 출구"
+
+        self.product_without_location.meeting_location = meeting_point
+        self.product_without_location.location_description = location_description
+        self.product_without_location.save()
+
+        # 인증 동네가 없는 사용자로 상품 조회
+        result = ProductService._product_to_detail(
+            self.product_without_location, user_without_region.id
+        )
+
+        # meeting_location 구조 검증
+        self.assertIn("meeting_location", result)
+        meeting_location = result["meeting_location"]
+
+        # 위도, 경도, 설명은 있어야 하지만 거리는 None이어야 함
+        self.assertEqual(meeting_location["latitude"], 37.5020)
+        self.assertEqual(meeting_location["longitude"], 127.0400)
+        self.assertEqual(meeting_location["description"], location_description)
+        self.assertIsNone(meeting_location["distance_text"])
+
+        print(f"인증 동네 없는 사용자의 meeting_location: {meeting_location}")
+
+    def test_meeting_location_structure_without_location_data(self):
+        """거래 위치 정보가 없을 때 meeting_location 구조 테스트"""
+        from a_apis.service.products import ProductService
+
+        # 거래 위치와 설명이 모두 없는 상품 (기본 상태)
+        result = ProductService._product_to_detail(
+            self.product_without_location, self.user.id
+        )
+
+        # meeting_location 구조는 존재해야 하지만 모든 값이 None이어야 함
+        self.assertIn("meeting_location", result)
+        meeting_location = result["meeting_location"]
+
+        self.assertIsNone(meeting_location["latitude"])
+        self.assertIsNone(meeting_location["longitude"])
+        self.assertIsNone(meeting_location["description"])
+        self.assertIsNone(meeting_location["distance_text"])
+
+        print(f"거래 위치 없는 상품의 meeting_location: {meeting_location}")

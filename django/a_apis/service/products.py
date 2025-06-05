@@ -184,6 +184,31 @@ class ProductService:
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
+
+            # 사용자 인증 동네 정보 조회 (거리 계산용)
+            user_center_point = None
+            if user_id:
+                try:
+                    from a_apis.models.region import UserActivityRegion
+
+                    active_region = (
+                        UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                        .select_related("activity_area")
+                        .first()
+                    )
+
+                    if (
+                        active_region
+                        and active_region.activity_area
+                        and active_region.activity_area.center_coordinates
+                    ):
+                        user_center_point = (
+                            active_region.activity_area.center_coordinates
+                        )
+                except Exception:
+                    # 인증 동네 조회 실패 시 무시
+                    pass
+
             for product in products:
                 # 이미지 URL 별도 처리
                 image_url = None
@@ -203,10 +228,32 @@ class ProductService:
                 # 동네 정보 추가
                 region_name = product.region.name if product.region else None
 
+                # 거래장소 정보 구성
+                meeting_location = None
+                if product.meeting_location:
+                    meeting_location = {
+                        "latitude": product.meeting_location.y,
+                        "longitude": product.meeting_location.x,
+                        "description": product.location_description,
+                        "distance_text": None,
+                    }
+
+                    # 거리 계산 (사용자 인증 동네가 있는 경우)
+                    if user_center_point:
+                        try:
+                            distance_text = ProductService.calculate_distance_text(
+                                user_center_point, product.meeting_location
+                            )
+                            meeting_location["distance_text"] = distance_text
+                        except Exception:
+                            # 거리 계산 실패 시 무시
+                            pass
+
                 product_list.append(
                     {
                         "id": product.id,
                         "title": product.title,
+                        "description": product.description,
                         "price": product.price,
                         "status": product.status,
                         "trade_type": product.trade_type,
@@ -218,7 +265,7 @@ class ProductService:
                         ),
                         "image_url": image_url,
                         "seller_nickname": product.user.nickname,
-                        "location_description": product.location_description,
+                        "meeting_location": meeting_location,
                         "interest_count": product.interest_count or 0,
                         "chat_count": product.chat_count or 0,
                         "region_name": region_name,
@@ -534,6 +581,28 @@ class ProductService:
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
+
+            # 사용자 인증 동네 정보 조회 (거리 계산용)
+            user_center_point = None
+            try:
+                from a_apis.models.region import UserActivityRegion
+
+                active_region = (
+                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+
+                if (
+                    active_region
+                    and active_region.activity_area
+                    and active_region.activity_area.center_coordinates
+                ):
+                    user_center_point = active_region.activity_area.center_coordinates
+            except Exception:
+                # 인증 동네 조회 실패 시 무시
+                pass
+
             for product in products:
                 # 이미지 URL 별도 처리
                 image_url = None
@@ -553,10 +622,32 @@ class ProductService:
                 # 동네 정보 추가
                 region_name = product.region.name if product.region else None
 
+                # 거래장소 정보 구성
+                meeting_location = None
+                if product.meeting_location:
+                    meeting_location = {
+                        "latitude": product.meeting_location.y,
+                        "longitude": product.meeting_location.x,
+                        "description": product.location_description,
+                        "distance_text": None,
+                    }
+
+                    # 거리 계산 (사용자 인증 동네가 있는 경우)
+                    if user_center_point:
+                        try:
+                            distance_text = ProductService.calculate_distance_text(
+                                user_center_point, product.meeting_location
+                            )
+                            meeting_location["distance_text"] = distance_text
+                        except Exception:
+                            # 거리 계산 실패 시 무시
+                            pass
+
                 product_list.append(
                     {
                         "id": product.id,
                         "title": product.title,
+                        "description": product.description,
                         "price": product.price,
                         "status": product.status,
                         "trade_type": product.trade_type,
@@ -568,7 +659,7 @@ class ProductService:
                         ),
                         "image_url": image_url,
                         "seller_nickname": product.user.nickname,
-                        "location_description": product.location_description,
+                        "meeting_location": meeting_location,
                         "interest_count": product.interest_count or 0,
                         "region_name": region_name,
                     }
@@ -646,6 +737,28 @@ class ProductService:
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
+
+            # 사용자 인증 동네 정보 조회 (거리 계산용)
+            user_center_point = None
+            try:
+                from a_apis.models.region import UserActivityRegion
+
+                active_region = (
+                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+
+                if (
+                    active_region
+                    and active_region.activity_area
+                    and active_region.activity_area.center_coordinates
+                ):
+                    user_center_point = active_region.activity_area.center_coordinates
+            except Exception:
+                # 인증 동네 조회 실패 시 무시
+                pass
+
             for product in products:
                 # 이미지 URL 별도 처리
                 image_url = None
@@ -666,10 +779,32 @@ class ProductService:
                 # 동네 정보 추가
                 region_name = product.region.name if product.region else None
 
+                # 거래장소 정보 구성
+                meeting_location = None
+                if product.meeting_location:
+                    meeting_location = {
+                        "latitude": product.meeting_location.y,
+                        "longitude": product.meeting_location.x,
+                        "description": product.location_description,
+                        "distance_text": None,
+                    }
+
+                    # 거리 계산 (사용자 인증 동네가 있는 경우)
+                    if user_center_point:
+                        try:
+                            distance_text = ProductService.calculate_distance_text(
+                                user_center_point, product.meeting_location
+                            )
+                            meeting_location["distance_text"] = distance_text
+                        except Exception:
+                            # 거리 계산 실패 시 무시
+                            pass
+
                 product_list.append(
                     {
                         "id": product.id,
                         "title": product.title,
+                        "description": product.description,
                         "price": product.price,
                         "status": product.status,
                         "trade_type": product.trade_type,
@@ -681,7 +816,7 @@ class ProductService:
                         ),
                         "image_url": image_url,
                         "seller_nickname": product.user.nickname,
-                        "location_description": product.location_description,
+                        "meeting_location": meeting_location,
                         "interest_count": product.interest_count or 0,
                         "region_name": region_name,
                     }

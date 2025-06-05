@@ -36,12 +36,16 @@ class ProductService:
                     "message": "인증된 동네가 아닙니다. 동네 인증 후 다시 시도해주세요.",
                 }
 
-            # 거래 위치 생성
-            meeting_point = Point(
-                data.meeting_location.longitude,
-                data.meeting_location.latitude,
-                srid=4326,
-            )
+            # 거래 위치 생성 (선택사항)
+            meeting_point = None
+            location_description = None
+            if data.meeting_location:
+                meeting_point = Point(
+                    data.meeting_location.longitude,
+                    data.meeting_location.latitude,
+                    srid=4326,
+                )
+                location_description = data.meeting_location.description
 
             # 상품 생성 (region 필드 추가)
             product = Product.objects.create(
@@ -54,7 +58,7 @@ class ProductService:
                 category_id=data.category_id,
                 region_id=region_id,  # 선택한 동네 정보 저장
                 meeting_location=meeting_point,
-                location_description=data.meeting_location.description,
+                location_description=location_description,
                 refresh_at=timezone.now(),
             )
 
@@ -146,10 +150,21 @@ class ProductService:
                 .values("count")
             )
 
+            # 활성화된 채팅방 개수 서브쿼리
+            from a_apis.models.chat import ChatRoom
+
+            chat_count = (
+                ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
             # 쿼리 실행 및 페이지네이션 - URL 대신 file_id를 가져옴
             products = queryset.annotate(
                 file_id=Subquery(first_image.values("file__id")[:1]),
                 interest_count=Subquery(interest_count[:1]),
+                chat_count=Subquery(chat_count[:1]),
             )[start_idx:end_idx]
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
@@ -190,6 +205,7 @@ class ProductService:
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,
+                        "chat_count": product.chat_count or 0,
                         "region_name": region_name,
                     }
                 )
@@ -235,7 +251,9 @@ class ProductService:
     def get_product(product_id: int, user_id: int = None) -> dict:
         """상품 상세 조회 서비스"""
         try:
-            product = Product.objects.select_related("user").get(id=product_id)
+            product = Product.objects.select_related("user", "region").get(
+                id=product_id
+            )
 
             # 조회수 증가
             product.view_count += 1
@@ -455,7 +473,7 @@ class ProductService:
             # 관심상품 쿼리셋
             queryset = (
                 Product.objects.filter(interested_users__user_id=user_id)
-                .select_related("user")
+                .select_related("user", "region")
                 .order_by("-interested_users__created_at")
             )
 
@@ -482,10 +500,21 @@ class ProductService:
                 .values("count")
             )
 
+            # 활성화된 채팅방 개수 서브쿼리
+            from a_apis.models.chat import ChatRoom
+
+            chat_count = (
+                ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
             # 쿼리 실행 및 페이지네이션 - URL 대신 file_id를 가져옴
             products = queryset.annotate(
                 file_id=Subquery(first_image.values("file__id")[:1]),
                 interest_count=Subquery(interest_count[:1]),
+                chat_count=Subquery(chat_count[:1]),
             )[start_idx:end_idx]
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
@@ -506,6 +535,9 @@ class ProductService:
                         # 이미지 URL 조회 실패 시 None으로 처리
                         pass
 
+                # 동네 정보 추가
+                region_name = product.region.name if product.region else None
+
                 product_list.append(
                     {
                         "id": product.id,
@@ -523,6 +555,7 @@ class ProductService:
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,
+                        "region_name": region_name,
                     }
                 )
 
@@ -546,7 +579,11 @@ class ProductService:
         """사용자 상품 목록 조회 서비스"""
         try:
             # 기본 쿼리셋 (내 상품)
-            queryset = Product.objects.filter(user_id=user_id).order_by("-refresh_at")
+            queryset = (
+                Product.objects.filter(user_id=user_id)
+                .select_related("region")
+                .order_by("-refresh_at")
+            )
 
             # 상태 필터링
             if status:
@@ -575,10 +612,21 @@ class ProductService:
                 .values("count")
             )
 
+            # 활성화된 채팅방 개수 서브쿼리
+            from a_apis.models.chat import ChatRoom
+
+            chat_count = (
+                ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
             # 쿼리 실행 및 페이지네이션 - file_id를 가져옴
             products = queryset.annotate(
                 file_id=Subquery(first_image.values("file__id")[:1]),
                 interest_count=Subquery(interest_count[:1]),
+                chat_count=Subquery(chat_count[:1]),
             )[start_idx:end_idx]
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
@@ -600,6 +648,9 @@ class ProductService:
                         # 이미지 URL 조회 실패 시 None으로 처리
                         pass
 
+                # 동네 정보 추가
+                region_name = product.region.name if product.region else None
+
                 product_list.append(
                     {
                         "id": product.id,
@@ -617,6 +668,7 @@ class ProductService:
                         "seller_nickname": product.user.nickname,
                         "location_description": product.location_description,
                         "interest_count": product.interest_count or 0,
+                        "region_name": region_name,
                     }
                 )
 
@@ -679,6 +731,9 @@ class ProductService:
                 "parent_id": product.category.parent_id,
             }
 
+        # 동네 정보 추가
+        region_name = product.region.name if product.region else None
+
         return {
             "id": product.id,
             "title": product.title,
@@ -698,6 +753,7 @@ class ProductService:
             "images": images,
             "is_interested": is_interested,
             "category": category_data,
+            "region_name": region_name,
         }
 
     # 카테고리 관련 메서드 추가

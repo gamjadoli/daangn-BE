@@ -13,6 +13,21 @@ from django.utils import timezone
 
 class ProductService:
     @staticmethod
+    def calculate_distance_text(point1, point2):
+        """두 지점 간의 거리를 계산하여 텍스트로 반환"""
+        if not point1 or not point2:
+            return None
+
+        # 두 점 간의 거리를 미터 단위로 계산
+        distance_meters = point1.distance(point2) * 111000  # 대략적인 변환 (도 -> 미터)
+
+        if distance_meters < 1000:
+            return f"{int(distance_meters)}m"
+        else:
+            distance_km = distance_meters / 1000
+            return f"{distance_km:.1f}km"
+
+    @staticmethod
     def get_product_model():
         """Product 모델 반환 (테스트 모킹 용이성 위함)"""
         return Product
@@ -720,7 +735,34 @@ class ProductService:
                 product.meeting_location.x if product.meeting_location else None
             ),
             "description": product.location_description,
+            "distance_text": None,  # 기본값
         }
+
+        # 거리 계산 (사용자 인증 동네가 있고, 상품에 거래장소가 설정된 경우)
+        if user_id and product.meeting_location:
+            try:
+                from a_apis.models.region import UserActivityRegion
+
+                # 사용자의 현재 활성 동네(우선순위 1) 조회
+                active_region = (
+                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+
+                if active_region and active_region.activity_area.center_coordinates:
+                    # 인증 동네의 중심 좌표와 거래장소 간의 거리 계산
+                    user_center_point = active_region.activity_area.center_coordinates
+                    meeting_point = product.meeting_location
+
+                    distance_text = ProductService.calculate_distance_text(
+                        user_center_point, meeting_point
+                    )
+                    location["distance_text"] = distance_text
+
+            except Exception:
+                # 거리 계산 실패 시 None으로 유지
+                pass
 
         # 카테고리 정보
         category_data = None

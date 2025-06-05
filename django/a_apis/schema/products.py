@@ -38,6 +38,9 @@ class LocationSchema(Schema):
     description: Optional[str] = Field(
         None, description="거래 장소 설명 (예: OO역 1번 출구)"
     )
+    distance_text: Optional[str] = Field(
+        None, description="인증된 동네로부터의 거리 (예: 1.2km, 500m)"
+    )
 
     @validator("latitude")
     def validate_latitude(cls, v):

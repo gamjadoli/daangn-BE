@@ -33,21 +33,21 @@ class CategorySearchResponseSchema(Schema):
 class LocationSchema(Schema):
     """거래 위치 스키마"""
 
-    latitude: float = Field(..., description="위도")
-    longitude: float = Field(..., description="경도")
+    latitude: Optional[float] = Field(None, description="위도")
+    longitude: Optional[float] = Field(None, description="경도")
     description: Optional[str] = Field(
         None, description="거래 장소 설명 (예: OO역 1번 출구)"
     )
 
     @validator("latitude")
     def validate_latitude(cls, v):
-        if not -90 <= v <= 90:
+        if v is not None and not -90 <= v <= 90:
             raise ValueError("위도는 -90에서 90 사이의 값이어야 합니다.")
         return v
 
     @validator("longitude")
     def validate_longitude(cls, v):
-        if not -180 <= v <= 180:
+        if v is not None and not -180 <= v <= 180:
             raise ValueError("경도는 -180에서 180 사이의 값이어야 합니다.")
         return v
 
@@ -66,7 +66,9 @@ class ProductCreateSchema(Schema):
         ..., description="상품 설명 (상세 정보, 거래 관련 주의사항 등)"
     )
     region_id: int = Field(..., description="등록할 동네 ID (인증된 동네 중 선택)")
-    meeting_location: LocationSchema = Field(..., description="거래 희망 위치 정보")
+    meeting_location: Optional[LocationSchema] = Field(
+        None, description="거래 희망 위치 정보 (선택사항)"
+    )
 
     @validator("title")
     def title_not_empty(cls, v):
@@ -128,9 +130,12 @@ class ProductDetailSchema(Schema):
     refresh_at: Optional[str] = Field(None, description="끌어올린 일시")
     seller_nickname: str = Field(..., description="판매자 닉네임")
     seller_id: int = Field(..., description="판매자 ID")
-    meeting_location: LocationSchema = Field(..., description="거래 희망 위치")
+    meeting_location: Optional[LocationSchema] = Field(
+        None, description="거래 희망 위치"
+    )
     images: List[ProductImageSchema] = Field([], description="상품 이미지 목록")
     is_interested: bool = Field(False, description="관심상품 등록 여부")
+    region_name: Optional[str] = Field(None, description="상품이 등록된 동네명")
 
 
 class ProductListItemSchema(Schema):
@@ -147,6 +152,8 @@ class ProductListItemSchema(Schema):
     seller_nickname: str = Field(..., description="판매자 닉네임")
     location_description: Optional[str] = Field(None, description="거래 장소 설명")
     interest_count: int = Field(0, description="관심 등록 수")
+    chat_count: int = Field(0, description="활성화된 채팅방 수")
+    region_name: Optional[str] = Field(None, description="상품이 등록된 동네명")
 
 
 class ProductResponseSchema(Schema):

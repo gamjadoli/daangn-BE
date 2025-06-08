@@ -344,3 +344,179 @@ class UserProfileUpdateTest(TestCase):
         # DB에 변경 사항 반영 확인 - 프로필 이미지가 None이어야 함
         self.user.refresh_from_db()
         self.assertIsNone(self.user.profile_img)  # profile_image -> profile_img
+
+
+class UserLoginAndMeAPITest(TestCase):
+    """로그인 및 내 정보 조회 API에서 유저 ID 반환 테스트"""
+
+    def setUp(self):
+        """테스트 셋업: 사용자 생성"""
+        self.client = Client()
+
+        # 테스트용 사용자 생성
+        self.user = User.objects.create_user(
+            username="test@example.com",
+            email="test@example.com",
+            password="testPassword123!",
+            nickname="테스터",
+            phone_number="01012345678",
+            is_email_verified=True,
+        )
+
+    def test_login_api_returns_user_id(self):
+        """로그인 API에서 사용자 ID가 반환되는지 테스트"""
+        from a_apis.schema.users import LoginSchema
+        from a_apis.service.users import UserService
+
+        from django.test import RequestFactory
+
+        # 로그인 데이터 준비
+        login_data = LoginSchema(email="test@example.com", password="testPassword123!")
+
+        # Django RequestFactory를 사용해서 실제 request 객체 생성
+        factory = RequestFactory()
+        request = factory.post("/api/users/login")
+
+        # 세션 미들웨어 설정
+        from django.contrib.sessions.middleware import SessionMiddleware
+
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+
+        # UserService.login_user 직접 호출
+        result = UserService.login_user(request, login_data)
+
+        # 응답 검증
+        self.assertTrue(result["success"])
+        self.assertEqual(result["message"], "로그인 되었습니다.")
+
+        # 사용자 정보에 ID가 포함되어 있는지 확인
+        self.assertIn("user", result)
+        user_data = result["user"]
+        self.assertIn("id", user_data)
+        self.assertEqual(user_data["id"], self.user.id)
+        self.assertEqual(user_data["email"], self.user.email)
+        self.assertEqual(user_data["nickname"], self.user.nickname)
+
+        # 토큰 정보도 확인
+        self.assertIn("tokens", result)
+        self.assertIn("access", result["tokens"])
+        self.assertIn("refresh", result["tokens"])
+
+        print(f"로그인 API 응답에서 사용자 ID: {user_data['id']}")
+
+    def test_get_user_api_returns_user_id(self):
+        """내 정보 조회 API에서 사용자 ID가 반환되는지 테스트"""
+        from a_apis.service.users import UserService
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(self.user)
+        access_token = str(refresh.access_token)
+
+        # Mock Request 객체 생성 (토큰 포함)
+        class MockRequest:
+            def __init__(self, token):
+                self.auth = token
+
+        mock_request = MockRequest(access_token)
+
+        # UserService.get_user 직접 호출
+        result = UserService.get_user(mock_request)
+
+        # 응답 검증
+        self.assertTrue(result["success"])
+        self.assertEqual(result["message"], "인증된 사용자입니다.")
+
+        # 사용자 정보에 ID가 포함되어 있는지 확인
+        self.assertIn("user", result)
+        user_data = result["user"]
+        self.assertIn("id", user_data)
+        self.assertEqual(user_data["id"], self.user.id)
+        self.assertEqual(user_data["email"], self.user.email)
+        self.assertEqual(user_data["nickname"], self.user.nickname)
+
+        # 기타 필수 필드들도 확인
+        self.assertIn("phone_number", user_data)
+        self.assertIn("is_activated", user_data)
+        self.assertIn("is_email_verified", user_data)
+        self.assertIn("rating_score", user_data)
+        self.assertIn("profile_img_url", user_data)
+        self.assertIn("regions", user_data)
+        self.assertIn("current_region", user_data)
+
+        print(f"내 정보 조회 API 응답에서 사용자 ID: {user_data['id']}")
+
+    def test_user_data_structure_consistency(self):
+        """로그인과 내 정보 조회 API의 사용자 데이터 구조 일관성 테스트"""
+        from a_apis.schema.users import LoginSchema
+        from a_apis.service.users import UserService
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        from django.test import RequestFactory
+
+        # 1. 로그인 API 호출
+        login_data = LoginSchema(email="test@example.com", password="testPassword123!")
+
+        # Django RequestFactory를 사용해서 실제 request 객체 생성
+        factory = RequestFactory()
+        request = factory.post("/api/users/login")
+
+        # 세션 미들웨어 설정
+        from django.contrib.sessions.middleware import SessionMiddleware
+
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+
+        login_result = UserService.login_user(request, login_data)
+
+        # 2. 내 정보 조회 API 호출
+        access_token = login_result["tokens"]["access"]
+
+        class MockRequestWithAuth:
+            def __init__(self, token):
+                self.auth = token
+
+        mock_request_with_auth = MockRequestWithAuth(access_token)
+        user_result = UserService.get_user(mock_request_with_auth)
+
+        # 3. 두 API의 사용자 데이터 구조가 동일한지 확인
+        login_user_data = login_result["user"]
+        get_user_data = user_result["user"]
+
+        # 필수 필드들이 모두 동일한지 확인
+        required_fields = [
+            "id",
+            "email",
+            "nickname",
+            "phone_number",
+            "is_activated",
+            "is_email_verified",
+            "rating_score",
+            "profile_img_url",
+            "regions",
+            "current_region",
+        ]
+
+        for field in required_fields:
+            self.assertIn(
+                field, login_user_data, f"로그인 응답에 {field} 필드가 없습니다"
+            )
+            self.assertIn(
+                field, get_user_data, f"내 정보 조회 응답에 {field} 필드가 없습니다"
+            )
+
+            # 값도 동일한지 확인 (객체 타입은 제외)
+            if field not in ["regions", "current_region"]:
+                self.assertEqual(
+                    login_user_data[field],
+                    get_user_data[field],
+                    f"{field} 필드 값이 두 API에서 다릅니다",
+                )
+
+        print(
+            "로그인과 내 정보 조회 API의 사용자 데이터 구조가 일관성 있게 구성되었습니다."
+        )
+        print(f"공통 사용자 ID: {login_user_data['id']}")

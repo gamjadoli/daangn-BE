@@ -53,6 +53,7 @@ class ActiveRegionResponseSchema(Schema):
 
 
 class UserSchema(Schema):
+    id: int = Field(..., description="사용자 ID")
     email: EmailStr = Field(..., description="사용자 이메일")
     nickname: str = Field(..., description="닉네임")
     phone_number: str = Field(..., description="휴대폰 번호")
@@ -65,6 +66,7 @@ class UserSchema(Schema):
 
 
 class UserResponseSchema(Schema):
+    id: int = Field(..., description="사용자 ID")
     email: EmailStr = Field(..., description="사용자 이메일")
     nickname: str = Field(..., description="닉네임")
     phone_number: str = Field(..., description="휴대폰 번호")

@@ -41,7 +41,7 @@ def get_my_interests(request, page: int = 1, page_size: int = 20):
     )
 
 
-@router.get("/user-products", response=ProductListResponseSchema)
+@router.get("/my-products", response=ProductListResponseSchema)
 def get_my_products(
     request, status: Optional[str] = None, page: int = 1, page_size: int = 20
 ):
@@ -77,7 +77,7 @@ def suggest_categories(request, title: str):
 
 
 # 나머지 라우트 등록
-@router.post("/", response=ProductResponseSchema)
+@router.post("", response=ProductResponseSchema)
 @transaction.atomic
 def create_product(
     request,
@@ -113,7 +113,7 @@ def create_product(
     )
 
 
-@router.get("/", response=ProductListResponseSchema)
+@router.get("", response=ProductListResponseSchema)
 def list_products(
     request,
     search: Optional[str] = None,
@@ -224,7 +224,7 @@ def update_product_status(request, product_id: int, data: ProductStatusUpdateSch
     )
 
 
-@router.post("/{product_id}/refresh-time", response=ProductResponseSchema)
+@router.post("/{product_id}/refresh", response=ProductResponseSchema)
 def refresh_product(request, product_id: int):
     """상품 끌어올리기 API
 
@@ -252,7 +252,7 @@ def delete_product(request, product_id: int):
     return ProductService.delete_product(product_id=product_id, user_id=request.user.id)
 
 
-@router.post("/{product_id}/interests", response=ProductResponseSchema)
+@router.post("/{product_id}/interest", response=ProductResponseSchema)
 def toggle_interest(request, product_id: int):
     """
     상품 관심 등록/해제 API
@@ -316,19 +316,14 @@ def get_price_offers(request, product_id: int):
     )
 
 
-@router.patch(
-    "/{product_id}/price-offers/{offer_id}", response=PriceOfferResponseSchema
-)
-def respond_to_price_offer(
-    request, product_id: int, offer_id: int, data: PriceOfferActionSchema
-):
+@router.post("/price-offers/{offer_id}/respond", response=PriceOfferResponseSchema)
+def respond_to_price_offer(request, offer_id: int, data: PriceOfferActionSchema):
     """
     가격 제안 수락/거절 API
 
     구매자의 가격 제안에 대해 판매자가 수락 또는 거절 가능
 
     경로 파라미터:
-    - product_id: 상품 ID
     - offer_id: 가격 제안 ID
 
     요청 데이터:
@@ -343,7 +338,7 @@ def respond_to_price_offer(
     )
 
 
-@router.patch("/{product_id}/status", response=ProductResponseSchema)
+@router.post("/{product_id}/complete", response=ProductResponseSchema)
 def complete_trade(request, product_id: int, data: TradeCompleteSchema):
     """
     거래 완료 처리 API
@@ -369,7 +364,7 @@ def complete_trade(request, product_id: int, data: TradeCompleteSchema):
     )
 
 
-@router.post("/{product_id}/reviews", response=ReviewResponseSchema)
+@router.post("/{product_id}/review", response=ReviewResponseSchema)
 def create_review(request, product_id: int, data: ReviewCreateSchema):
     """
     거래 후기 작성 API

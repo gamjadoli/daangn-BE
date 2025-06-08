@@ -181,6 +181,7 @@ class UserService:
 
             # 응답 데이터 구성
             user_data = {
+                "id": user.id,  # 유저 ID 추가
                 "email": user.email,
                 "nickname": user.nickname,
                 "phone_number": user.phone_number,
@@ -290,6 +291,7 @@ class UserService:
 
             # 응답 데이터 구성
             user_data = {
+                "id": user.id,  # 유저 ID 추가
                 "email": user.email,
                 "nickname": user.nickname,
                 "phone_number": user.phone_number,

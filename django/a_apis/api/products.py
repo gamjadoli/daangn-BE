@@ -137,12 +137,12 @@ def list_products(
     - page_size: 페이지당 상품 수 (기본값: 20)
 
     예시 엔드포인트:
-    - 기본 조회: /api/products/
-    - 검색: /api/products/?search=자전거
-    - 필터링: /api/products/?status=new&trade_type=sale
-    - 동네 필터링: /api/products/?region_id=123
-    - 페이징: /api/products/?page=2&page_size=10
-    - 복합 쿼리: /api/products/?search=자전거&status=new&region_id=123&page=2
+    - 기본 조회: /api/products
+    - 검색: /api/products?search=자전거
+    - 필터링: /api/products?status=new&trade_type=sale
+    - 동네 필터링: /api/products?region_id=123
+    - 페이징: /api/products?page=2&page_size=10
+    - 복합 쿼리: /api/products?search=자전거&status=new&region_id=123&page=2
 
     성공: 상품 목록과 페이징 정보 반환
     """

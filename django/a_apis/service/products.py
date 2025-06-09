@@ -985,10 +985,10 @@ class ProductService:
     def suggest_categories(title: str) -> dict:
         """상품 제목 기반 카테고리 추천"""
         try:
-            if not title or len(title) < 2:
+            if not title or not title.strip():
                 return {
                     "success": True,
-                    "message": "제목이 너무 짧습니다.",
+                    "message": "제목이 필요합니다.",
                     "data": [],
                 }
 
@@ -1168,7 +1168,7 @@ class ProductService:
 
             # 키워드 매핑 기반 검색
             for word in words:
-                if len(word) >= 2 and word in keyword_mapping:  # 매핑된 키워드 확인
+                if len(word) >= 1 and word in keyword_mapping:  # 매핑된 키워드 확인
                     category_id = keyword_mapping[word]
                     try:
                         category = ProductCategory.objects.get(id=category_id)
@@ -1180,7 +1180,7 @@ class ProductService:
             # 이름 기반 검색 (키워드 매핑에서 찾지 못한 단어에 대해)
             for word in words:
                 if (
-                    len(word) >= 2 and word not in matched_keywords
+                    len(word) >= 1 and word not in matched_keywords
                 ):  # 이미 매칭된 키워드는 제외
                     found_categories = ProductCategory.objects.filter(
                         name__icontains=word

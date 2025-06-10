@@ -94,12 +94,35 @@ class ProductService:
 
     @staticmethod
     def get_products(user_id=None, filter_params=None) -> dict:
-        """상품 목록 조회 서비스"""
+        """상품 목록 조회 서비스 (지리적 거리 기반 3km 범위)"""
         try:
+            from a_apis.models.region import UserActivityRegion
+
+            from django.contrib.gis.db.models.functions import Distance
+            from django.contrib.gis.measure import D
+
             # 기본 쿼리셋
             queryset = Product.objects.select_related("user", "region").order_by(
                 "-refresh_at"
             )
+
+            # 사용자의 활성 동네 중심점 조회 (지리적 필터링용)
+            user_center_point = None
+            active_region_name = None
+            if user_id:
+                active_region = (
+                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+
+                if (
+                    active_region
+                    and active_region.activity_area
+                    and active_region.activity_area.center_coordinates
+                ):
+                    user_center_point = active_region.activity_area.center_coordinates
+                    active_region_name = active_region.activity_area.name
 
             # 필터링 적용 (있는 경우)
             if filter_params:
@@ -117,30 +140,52 @@ class ProductService:
                 if filter_params.get("trade_type"):
                     queryset = queryset.filter(trade_type=filter_params["trade_type"])
 
-                # 동네 필터링
+                # 지리적 필터링 (반경 3km)
                 region_id = filter_params.get("region_id")
                 if region_id:
-                    # 특정 동네 ID가 제공된 경우 해당 동네의 상품만 필터링
-                    queryset = queryset.filter(region_id=region_id)
-                elif user_id:
-                    # 동네 ID가 제공되지 않았고, 사용자 ID가 있는 경우
-                    # 사용자의 활성 동네(우선순위 1)를 찾아 해당 동네의 상품만 필터링
-                    from a_apis.models.region import UserActivityRegion
+                    # 특정 동네 ID가 제공된 경우 해당 동네 중심에서 3km 범위
+                    from a_apis.models.region import EupmyeondongRegion
 
-                    active_region = (
-                        UserActivityRegion.objects.filter(user_id=user_id, priority=1)
-                        .select_related("activity_area")
-                        .first()
-                    )
-
-                    if active_region:
-                        queryset = queryset.filter(
-                            region_id=active_region.activity_area.id
+                    try:
+                        specific_region = EupmyeondongRegion.objects.get(id=region_id)
+                        if specific_region.center_coordinates:
+                            # 3km를 도(degree) 단위로 변환: 1도 ≈ 111km이므로 3km ≈ 0.027도
+                            distance_in_degrees = 3.0 / 111.0
+                            queryset = queryset.filter(
+                                region__center_coordinates__dwithin=(
+                                    specific_region.center_coordinates,
+                                    distance_in_degrees,
+                                )
+                            )
+                            # 거리순으로 정렬
+                            queryset = queryset.annotate(
+                                distance=Distance(
+                                    "region__center_coordinates",
+                                    specific_region.center_coordinates,
+                                )
+                            ).order_by("distance", "-refresh_at")
+                    except EupmyeondongRegion.DoesNotExist:
+                        pass
+                elif user_center_point:
+                    # 사용자의 활성 동네에서 3km 범위의 상품만 필터링
+                    # 3km를 도(degree) 단위로 변환: 1도 ≈ 111km이므로 3km ≈ 0.027도
+                    distance_in_degrees = 3.0 / 111.0
+                    queryset = queryset.filter(
+                        region__center_coordinates__dwithin=(
+                            user_center_point,
+                            distance_in_degrees,
                         )
+                    )
+                    # 거리순으로 정렬
+                    queryset = queryset.annotate(
+                        distance=Distance(
+                            "region__center_coordinates", user_center_point
+                        )
+                    ).order_by("distance", "-refresh_at")
 
             # 페이지네이션 파라미터
-            page = int(filter_params.get("page", 1))
-            page_size = int(filter_params.get("page_size", 20))
+            page = filter_params.get("page", 1) if filter_params else 1
+            page_size = filter_params.get("page_size", 20) if filter_params else 20
 
             # 총 개수 파악
             total_count = queryset.count()
@@ -184,30 +229,6 @@ class ProductService:
 
             # 결과 변환 - 이미지가 있는 경우 URL을 별도로 조회
             product_list = []
-
-            # 사용자 인증 동네 정보 조회 (거리 계산용)
-            user_center_point = None
-            if user_id:
-                try:
-                    from a_apis.models.region import UserActivityRegion
-
-                    active_region = (
-                        UserActivityRegion.objects.filter(user_id=user_id, priority=1)
-                        .select_related("activity_area")
-                        .first()
-                    )
-
-                    if (
-                        active_region
-                        and active_region.activity_area
-                        and active_region.activity_area.center_coordinates
-                    ):
-                        user_center_point = (
-                            active_region.activity_area.center_coordinates
-                        )
-                except Exception:
-                    # 인증 동네 조회 실패 시 무시
-                    pass
 
             for product in products:
                 # 이미지 URL 별도 처리
@@ -272,7 +293,7 @@ class ProductService:
                     }
                 )
 
-            # 동네 필터링 메시지 구성
+            # 지리적 필터링 메시지 구성
             message = "상품 목록이 조회되었습니다."
             if filter_params and filter_params.get("region_id"):
                 try:
@@ -281,20 +302,13 @@ class ProductService:
                     region = EupmyeondongRegion.objects.get(
                         id=filter_params["region_id"]
                     )
-                    message = f"{region.name} 지역의 상품 목록이 조회되었습니다."
+                    message = f"{region.name} 주변 3km 이내 상품 목록이 조회되었습니다."
                 except Exception:
                     pass
-            elif user_id:
-                from a_apis.models.region import UserActivityRegion
-
-                active_region = (
-                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
-                    .select_related("activity_area")
-                    .first()
+            elif active_region_name:
+                message = (
+                    f"{active_region_name} 주변 3km 이내 상품 목록이 조회되었습니다."
                 )
-
-                if active_region:
-                    message = f"{active_region.activity_area.name} 지역의 상품 목록이 조회되었습니다."
 
             return {
                 "success": True,
@@ -313,9 +327,9 @@ class ProductService:
     def get_product(product_id: int, user_id: int = None) -> dict:
         """상품 상세 조회 서비스"""
         try:
-            product = Product.objects.select_related("user", "region").get(
-                id=product_id
-            )
+            product = Product.objects.select_related(
+                "user", "user__profile_img", "region"
+            ).get(id=product_id)
 
             # 조회수 증가
             product.view_count += 1
@@ -911,6 +925,18 @@ class ProductService:
         # 동네 정보 추가
         region_name = product.region.name if product.region else None
 
+        # 판매자 정보 구성
+        seller_info = {
+            "id": product.user.id,
+            "nickname": product.user.nickname,
+            "profile_image_url": None,
+            "rating_score": float(product.user.rating_score),
+        }
+
+        # 판매자 프로필 이미지 URL 처리
+        if product.user.profile_img:
+            seller_info["profile_image_url"] = product.user.profile_img.url
+
         return {
             "id": product.id,
             "title": product.title,
@@ -924,8 +950,7 @@ class ProductService:
             "refresh_at": (
                 product.refresh_at.isoformat() if product.refresh_at else None
             ),
-            "seller_nickname": product.user.nickname,
-            "seller_id": product.user.id,
+            "seller": seller_info,
             "meeting_location": location,
             "images": images,
             "is_interested": is_interested,
@@ -1807,3 +1832,331 @@ class ProductService:
                 "message": f"매너 평가 목록 조회 중 오류가 발생했습니다: {str(e)}",
                 "data": None,
             }
+
+    @staticmethod
+    def get_products_by_keyword_in_region(
+        user_id: int, keyword: str, radius: float = 3.0, limit: int = 30
+    ) -> dict:
+        """
+        활동지역 범위 내에서 키워드와 관련된 상품 추천 서비스
+
+        Args:
+            user_id: 요청한 사용자 ID
+            keyword: 검색 키워드
+            radius: 검색 반경 (km 단위, 기본값 3km)
+            limit: 반환할 상품 개수 (기본값 30개)
+
+        Returns:
+            dict: 검색 결과 및 메타데이터
+        """
+        try:
+            from a_apis.models.region import UserActivityRegion
+
+            from django.contrib.gis.db.models.functions import Distance
+            from django.contrib.gis.measure import D
+
+            # 사용자의 활동 지역 중 우선순위가 가장 높은 지역 찾기
+            user_region = (
+                UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                .select_related("activity_area")
+                .first()
+            )
+
+            if not user_region or not user_region.activity_area.center_coordinates:
+                return {
+                    "success": False,
+                    "message": "활동 지역이 설정되지 않았습니다.",
+                }
+
+            # 사용자의 중심 위치
+            user_location = user_region.activity_area.center_coordinates
+
+            # 반경 내 상품 검색 및 키워드로 필터링
+            # DWithin에서는 도(degree) 단위를 사용해야 함
+            # 대략적으로 1도 = 111km 이므로 km를 도로 변환
+            radius_in_degrees = radius / 111.0
+
+            queryset = (
+                Product.objects.exclude(user_id=user_id)
+                .filter(
+                    meeting_location__dwithin=(user_location, radius_in_degrees),
+                    status="new",  # 판매중인 상품만
+                )
+                .annotate(distance=Distance("meeting_location", user_location))
+                .order_by("distance")
+            )
+
+            # 키워드 필터링
+            if keyword:
+                queryset = queryset.filter(
+                    Q(title__icontains=keyword) | Q(description__icontains=keyword)
+                )
+
+            # 총 개수 파악
+            total_count = queryset.count()
+
+            # 첫 번째 이미지 ID 서브쿼리
+            first_image = (
+                ProductImage.objects.filter(product=OuterRef("pk"))
+                .select_related("file")
+                .order_by("created_at")
+            )
+
+            # 관심 수 계산 서브쿼리
+            interest_count = (
+                InterestProduct.objects.filter(product=OuterRef("pk"))
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
+            # 활성화된 채팅방 개수 서브쿼리
+            from a_apis.models.chat import ChatRoom
+
+            chat_count = (
+                ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
+            # 쿼리 실행 및 제한
+            products = queryset.select_related("user", "region").annotate(
+                file_id=Subquery(first_image.values("file__id")[:1]),
+                interest_count=Subquery(interest_count[:1]),
+                chat_count=Subquery(chat_count[:1]),
+            )[:limit]
+
+            # 결과 변환
+            product_list = []
+            for product in products:
+                # 이미지 URL 가져오기
+                image_url = None
+                if product.file_id:
+                    from a_apis.models import File
+
+                    file_obj = File.objects.filter(id=product.file_id).first()
+                    if file_obj:
+                        image_url = file_obj.url
+
+                # 거리 텍스트 계산
+                distance_text = ProductService.calculate_distance_text(
+                    user_location, product.meeting_location
+                )
+
+                is_interested = False
+                if user_id:
+                    # 관심상품 여부 확인
+                    is_interested = InterestProduct.objects.filter(
+                        user_id=user_id, product_id=product.id
+                    ).exists()
+
+                product_data = {
+                    "id": product.id,
+                    "title": product.title,
+                    "price": product.price,
+                    "trade_type": product.trade_type,
+                    "status": product.status,
+                    "image_url": image_url,
+                    "region_name": product.region.name if product.region else None,
+                    "distance_text": distance_text,
+                    "interest_count": product.interest_count or 0,
+                    "chat_count": product.chat_count or 0,
+                    "created_at": product.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    "refresh_at": (
+                        product.refresh_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if product.refresh_at
+                        else None
+                    ),
+                    "is_interested": is_interested,
+                    "seller_nickname": product.user.nickname,
+                }
+                product_list.append(product_data)
+
+            return {
+                "success": True,
+                "message": f"'{keyword}' 키워드 관련 근처 상품 {len(product_list)}개를 조회했습니다.",
+                "data": {
+                    "products": product_list,
+                    "total_count": total_count,
+                    "keyword": keyword,
+                    "radius": radius,
+                    "user_region": user_region.activity_area.name,
+                },
+            }
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @staticmethod
+    def get_user_sales_products(
+        user_id: int,
+        target_user_id: int,
+        status: str = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """
+        특정 유저의 판매 상품 목록 조회 서비스
+
+        Args:
+            user_id: 요청한 사용자 ID (권한 확인용)
+            target_user_id: 조회할 타겟 사용자 ID
+            status: 필터링할 상품 상태 (new, reserved, soldout)
+            page: 페이지 번호
+            page_size: 페이지 크기
+
+        Returns:
+            dict: 조회 결과 및 메타데이터
+        """
+        try:
+            # 기본 쿼리셋 (특정 유저의 상품만)
+            queryset = (
+                Product.objects.filter(user_id=target_user_id)
+                .select_related("user", "region")
+                .order_by("-refresh_at", "-created_at")
+            )
+
+            # 상태로 필터링 (있는 경우)
+            if status:
+                queryset = queryset.filter(status=status)
+
+            # 페이지네이션 적용
+            total_count = queryset.count()
+            total_pages = math.ceil(total_count / page_size)
+
+            # 페이지 범위 설정
+            start_idx = (page - 1) * page_size
+            end_idx = start_idx + page_size
+
+            # 첫 번째 이미지 ID 서브쿼리
+            first_image = (
+                ProductImage.objects.filter(product=OuterRef("pk"))
+                .select_related("file")
+                .order_by("created_at")
+            )
+
+            # 관심 수 계산 서브쿼리
+            interest_count = (
+                InterestProduct.objects.filter(product=OuterRef("pk"))
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
+            # 활성화된 채팅방 개수 서브쿼리
+            from a_apis.models.chat import ChatRoom
+
+            chat_count = (
+                ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
+                .values("product")
+                .annotate(count=Count("id"))
+                .values("count")
+            )
+
+            # 쿼리 실행 및 페이지네이션
+            products = queryset.annotate(
+                file_id=Subquery(first_image.values("file__id")[:1]),
+                interest_count=Subquery(interest_count[:1]),
+                chat_count=Subquery(chat_count[:1]),
+            )[start_idx:end_idx]
+
+            # 결과 변환
+            product_list = []
+
+            # 사용자 인증 동네 정보 조회 (거리 계산용)
+            user_center_point = None
+            if user_id:
+                from a_apis.models.region import UserActivityRegion
+
+                active_region = (
+                    UserActivityRegion.objects.filter(user_id=user_id, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+
+                if active_region and active_region.activity_area.center_coordinates:
+                    user_center_point = active_region.activity_area.center_coordinates
+
+            for product in products:
+                # 이미지 URL 가져오기
+                image_url = None
+                if product.file_id:
+                    from a_apis.models import File
+
+                    file_obj = File.objects.filter(id=product.file_id).first()
+                    if file_obj:
+                        image_url = file_obj.url
+
+                # 거리 텍스트 계산
+                distance_text = None
+                if user_center_point and product.meeting_location:
+                    distance_text = ProductService.calculate_distance_text(
+                        user_center_point, product.meeting_location
+                    )
+
+                is_interested = False
+                if user_id:
+                    # 관심상품 여부 확인
+                    is_interested = InterestProduct.objects.filter(
+                        user_id=user_id, product_id=product.id
+                    ).exists()
+
+                product_data = {
+                    "id": product.id,
+                    "title": product.title,
+                    "price": product.price,
+                    "trade_type": product.trade_type,
+                    "status": product.status,
+                    "image_url": image_url,
+                    "region_name": product.region.name if product.region else None,
+                    "distance_text": distance_text,
+                    "interest_count": product.interest_count or 0,
+                    "chat_count": product.chat_count or 0,
+                    "created_at": product.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    "refresh_at": (
+                        product.refresh_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if product.refresh_at
+                        else None
+                    ),
+                    "is_interested": is_interested,
+                    "seller_nickname": product.user.nickname,
+                }
+                product_list.append(product_data)
+
+            # 타겟 유저 정보
+            from a_user.models import User
+
+            target_user = User.objects.get(id=target_user_id)
+
+            # 페이지네이션 메타데이터
+            pagination_data = {
+                "page": page,
+                "page_size": page_size,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1,
+            }
+
+            status_display = {
+                "new": "판매중",
+                "reserved": "예약중",
+                "soldout": "판매완료",
+            }.get(status, "전체")
+
+            return {
+                "success": True,
+                "message": f"{target_user.nickname}님의 {status_display} 상품 목록을 조회했습니다.",
+                "data": {
+                    "products": product_list,
+                    "pagination": pagination_data,
+                    "target_user": {
+                        "id": target_user.id,
+                        "nickname": target_user.nickname,
+                    },
+                },
+            }
+        except User.DoesNotExist:
+            return {"success": False, "message": "존재하지 않는 사용자입니다."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}

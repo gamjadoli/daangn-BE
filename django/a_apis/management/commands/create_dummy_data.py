@@ -2,19 +2,26 @@
 더미 테스트 데이터 생성 명령어
 """
 
+import os
 import random
+import tempfile
 from decimal import Decimal
+from io import BytesIO
 
-from a_apis.models.product import Product, ProductCategory
+from a_apis.models.files import File
+from a_apis.models.product import Product, ProductCategory, ProductImage
 from a_apis.models.region import (
     EupmyeondongRegion,
     SidoRegion,
     SigunguRegion,
     UserActivityRegion,
 )
+from a_apis.service.files import FileService
 from a_user.models import User
+from PIL import Image, ImageDraw, ImageFont
 
 from django.contrib.gis.geos import Point
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -645,15 +652,35 @@ class Command(BaseCommand):
                 )
                 products_created += 1
 
-                # 진행 상황 출력 (10개마다)
-                if (i + 1) % 10 == 0:
+                # 상품 이미지 생성 (1-3개의 이미지)
+                image_count = random.randint(1, 3)
+                images_created = 0
+
+                for img_num in range(1, image_count + 1):
+                    try:
+                        # 더미 이미지 생성
+                        dummy_image = self.create_dummy_image(title, img_num)
+
+                        if dummy_image:
+                            # FileService를 통해 파일 업로드
+                            file_obj = FileService.upload_file(dummy_image)
+
+                            # ProductImage 생성
+                            ProductImage.objects.create(product=product, file=file_obj)
+                            images_created += 1
+
+                    except Exception as e:
+                        self.stdout.write(f"⚠️ 상품 이미지 생성 실패: {e}")
+
+                # 성공 로그 (이미지 정보 포함)
+                if (i + 1) % 5 == 0:  # 5개마다 출력 (이미지 생성으로 인해 더 자주)
                     region_info = (
                         f"{product_region.sigungu.sido.name} {product_region.sigungu.name} {product_region.name}"
                         if hasattr(product_region, "sigungu")
                         else product_region.name
                     )
                     self.stdout.write(
-                        f"📦 {i + 1}개 상품 생성 중... (최신: {title} -> {selected_category.name}, 사용자: {selected_user.nickname}, 지역: {region_info})"
+                        f"📦 {i + 1}개 상품 생성 중... (최신: {title[:20]} -> {selected_category.name}, 이미지: {images_created}개, 지역: {region_info})"
                     )
 
             except Exception as e:
@@ -727,8 +754,19 @@ class Command(BaseCommand):
 
         # 상품 통계
         total_products = Product.objects.count()
+        total_images = ProductImage.objects.count()
+        products_with_images = (
+            Product.objects.filter(images__isnull=False).distinct().count()
+        )
+
         self.stdout.write(f"\n📦 상품 통계:")
         self.stdout.write(f"   총 상품: {total_products}개")
+        self.stdout.write(f"   총 상품 이미지: {total_images}개")
+        self.stdout.write(f"   이미지 보유 상품: {products_with_images}개")
+
+        if total_products > 0:
+            avg_images = total_images / total_products
+            self.stdout.write(f"   상품당 평균 이미지: {avg_images:.1f}개")
 
         # 상품-지역 일치율 검증
         if total_products > 0:
@@ -759,3 +797,130 @@ class Command(BaseCommand):
             self.stdout.write(f"   검증 방법: 사용자 활동지역과 상품 등록지역 매칭")
 
         self.stdout.write("=" * 60)
+
+    def create_dummy_image(self, product_title, image_number=1):
+        """더미 이미지 생성"""
+        try:
+            # 이미지 크기 설정 (800x600)
+            width, height = 800, 600
+
+            # 랜덤 배경색 생성
+            bg_colors = [
+                (255, 182, 193),  # 연한 핑크
+                (173, 216, 230),  # 연한 파랑
+                (144, 238, 144),  # 연한 초록
+                (255, 218, 185),  # 연한 주황
+                (221, 160, 221),  # 연한 보라
+                (255, 255, 224),  # 연한 노랑
+                (240, 248, 255),  # 연한 하늘색
+                (250, 240, 230),  # 연한 베이지
+            ]
+            bg_color = random.choice(bg_colors)
+
+            # 이미지 생성
+            image = Image.new("RGB", (width, height), bg_color)
+            draw = ImageDraw.Draw(image)
+
+            # 텍스트 색상
+            text_color = (60, 60, 60)
+
+            try:
+                # 시스템 폰트 사용 시도
+                font_large = ImageFont.truetype(
+                    "/System/Library/Fonts/Helvetica.ttc", 36
+                )
+                font_medium = ImageFont.truetype(
+                    "/System/Library/Fonts/Helvetica.ttc", 24
+                )
+                font_small = ImageFont.truetype(
+                    "/System/Library/Fonts/Helvetica.ttc", 18
+                )
+            except:
+                # 폰트 로드 실패 시 기본 폰트 사용
+                font_large = ImageFont.load_default()
+                font_medium = ImageFont.load_default()
+                font_small = ImageFont.load_default()
+
+            # 상품명 그리기 (줄바꿈 처리)
+            title_words = product_title.split()
+            title_lines = []
+            current_line = ""
+
+            for word in title_words:
+                if len(current_line + " " + word) <= 20:  # 한 줄에 약 20자
+                    current_line += (" " if current_line else "") + word
+                else:
+                    if current_line:
+                        title_lines.append(current_line)
+                    current_line = word
+
+            if current_line:
+                title_lines.append(current_line)
+
+            # 제목이 너무 길면 2줄로 제한
+            if len(title_lines) > 2:
+                title_lines = title_lines[:2]
+                title_lines[1] += "..."
+
+            # 제목 그리기
+            y_start = height // 2 - len(title_lines) * 25
+            for i, line in enumerate(title_lines):
+                # 텍스트 중앙 정렬을 위한 위치 계산
+                bbox = draw.textbbox((0, 0), line, font=font_large)
+                text_width = bbox[2] - bbox[0]
+                x = (width - text_width) // 2
+                y = y_start + i * 50
+
+                draw.text((x, y), line, fill=text_color, font=font_large)
+
+            # 이미지 번호 표시
+            image_label = f"Image #{image_number}"
+            bbox = draw.textbbox((0, 0), image_label, font=font_small)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                (width - text_width - 20, height - 30),
+                image_label,
+                fill=text_color,
+                font=font_small,
+            )
+
+            # 더미 가격 표시
+            price = f"₩{random.randint(10, 999):,}000"
+            bbox = draw.textbbox((0, 0), price, font=font_medium)
+            text_width = bbox[2] - bbox[0]
+            x = (width - text_width) // 2
+            y = y_start + len(title_lines) * 50 + 30
+            draw.text((x, y), price, fill=(255, 69, 0), font=font_medium)  # 주황색 가격
+
+            # 장식용 테두리
+            border_color = tuple(
+                max(0, c - 30) for c in bg_color
+            )  # 배경색보다 어두운 색
+            draw.rectangle(
+                [10, 10, width - 10, height - 10], outline=border_color, width=3
+            )
+
+            # 이미지를 BytesIO로 저장
+            image_io = BytesIO()
+            image.save(image_io, format="JPEG", quality=85)
+            image_io.seek(0)
+
+            # 파일명 생성
+            safe_title = "".join(
+                c for c in product_title if c.isalnum() or c in (" ", "-", "_")
+            ).rstrip()
+            safe_title = safe_title.replace(" ", "_")[:20]  # 20자로 제한
+            filename = f"product_{safe_title}_{image_number}.jpg"
+
+            # SimpleUploadedFile 생성
+            uploaded_file = SimpleUploadedFile(
+                name=filename,
+                content=image_io.getvalue(),
+                content_type="image/jpeg",
+            )
+
+            return uploaded_file
+
+        except Exception as e:
+            self.stdout.write(f"⚠️ 이미지 생성 실패: {e}")
+            return None

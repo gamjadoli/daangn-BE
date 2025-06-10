@@ -113,6 +113,15 @@ class ProductImageSchema(Schema):
     url: str = Field(..., description="이미지 URL")
 
 
+class SellerSchema(Schema):
+    """판매자 정보 스키마"""
+
+    id: int = Field(..., description="판매자 ID")
+    nickname: str = Field(..., description="판매자 닉네임")
+    profile_image_url: Optional[str] = Field(None, description="프로필 이미지 URL")
+    rating_score: float = Field(..., description="매너온도")
+
+
 class ProductDetailSchema(Schema):
     """상품 상세 정보 스키마"""
 
@@ -131,8 +140,7 @@ class ProductDetailSchema(Schema):
     )
     created_at: str = Field(..., description="등록 일시")
     refresh_at: Optional[str] = Field(None, description="끌어올린 일시")
-    seller_nickname: str = Field(..., description="판매자 닉네임")
-    seller_id: int = Field(..., description="판매자 ID")
+    seller: SellerSchema = Field(..., description="판매자 정보")
     meeting_location: Optional[LocationSchema] = Field(
         None, description="거래 희망 위치"
     )

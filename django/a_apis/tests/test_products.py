@@ -150,8 +150,12 @@ class ProductAPITestCase(TestCase):
                 "status": "new",
                 "created_at": "2023-01-01T00:00:00Z",
                 "refresh_at": None,
-                "seller_nickname": "테스터",
-                "seller_id": 1,
+                "seller": {
+                    "id": 1,
+                    "nickname": "테스터",
+                    "profile_image_url": None,
+                    "rating_score": 36.5,
+                },
                 "meeting_location": {
                     "latitude": 37.5665,
                     "longitude": 126.9780,
@@ -177,6 +181,7 @@ class ProductAPITestCase(TestCase):
             "accept_price_offer": True,
             "description": "새 테스트 상품 설명입니다.",
             "meeting_location": location_data,
+            "region_id": self.eupmyeondong.id,
         }
 
         # 서비스 직접 호출 - API 호출 대신
@@ -282,8 +287,12 @@ class ProductAPITestCase(TestCase):
                 "price": 10000,
                 "trade_type": "sale",
                 "description": "상품 설명",
-                "seller_nickname": "테스터",
-                "seller_id": 1,
+                "seller": {
+                    "id": 1,
+                    "nickname": "테스터",
+                    "profile_image_url": None,
+                    "rating_score": 36.5,
+                },
                 "status": "new",
                 "view_count": 1,
                 "created_at": "2023-01-01T00:00:00Z",
@@ -326,8 +335,12 @@ class ProductAPITestCase(TestCase):
                 "status": "new",
                 "created_at": "2023-01-01T00:00:00Z",
                 "refresh_at": None,
-                "seller_nickname": "테스터",
-                "seller_id": 1,
+                "seller": {
+                    "id": 1,
+                    "nickname": "테스터",
+                    "profile_image_url": None,
+                    "rating_score": 36.5,
+                },
                 "meeting_location": {
                     "latitude": 37.5665,
                     "longitude": 126.9780,
@@ -353,6 +366,7 @@ class ProductAPITestCase(TestCase):
             "accept_price_offer": False,
             "description": "수정된 상품 설명입니다.",
             "meeting_location": location_data,
+            "region_id": self.eupmyeondong.id,
         }
 
         location_schema = LocationSchema(**location_data)
@@ -658,8 +672,12 @@ class ProductAPITestCase(TestCase):
                 "price": 10000,
                 "trade_type": "sale",
                 "description": "상품 설명",
-                "seller_nickname": "테스터",
-                "seller_id": 1,
+                "seller": {
+                    "id": 1,
+                    "nickname": "테스터",
+                    "profile_image_url": None,
+                    "rating_score": 36.5,
+                },
                 "status": "new",
                 "view_count": 0,
                 "created_at": "2023-01-01T00:00:00Z",
@@ -830,8 +848,12 @@ class ProductAPITestCase(TestCase):
                 "price": 10000,
                 "trade_type": "sale",
                 "description": "상품 설명",
-                "seller_id": self.user.id,
-                "seller_nickname": "테스터",
+                "seller": {
+                    "id": self.user.id,
+                    "nickname": "테스터",
+                    "profile_image_url": None,
+                    "rating_score": 36.5,
+                },
                 "buyer_id": self.other_user.id,
                 "buyer_nickname": "다른유저",
                 "status": "sold",
@@ -984,7 +1006,7 @@ class ProductAPITestCase(TestCase):
                 "rating_type": "kind",
                 "rating_display": "친절하고 매너가 좋아요",
                 "created_at": "2023-01-01T00:00:00Z",
-                "manner_temperature": 36.7,  # 매너온도 변화 후 값
+                "manner_rating_score": 36.7,  # 매너온도 변화 후 값
             },
         }
 
@@ -1002,7 +1024,7 @@ class ProductAPITestCase(TestCase):
         self.assertEqual(result["data"]["rater_id"], self.user.id)
         self.assertEqual(result["data"]["rated_user_id"], self.other_user.id)
         self.assertGreater(
-            result["data"]["manner_temperature"], 36.5
+            result["data"]["manner_rating_score"], 36.5
         )  # 긍정적 평가로 온도 상승
 
         # 부정적인 매너평가 모킹 응답 설정
@@ -1020,7 +1042,7 @@ class ProductAPITestCase(TestCase):
                 "rating_type": "bad_response",
                 "rating_display": "응답이 느려요",
                 "created_at": "2023-01-01T00:00:00Z",
-                "manner_temperature": 36.0,  # 매너온도 변화 후 값
+                "manner_rating_score": 36.0,  # 매너온도 변화 후 값
             },
         }
 
@@ -1038,7 +1060,7 @@ class ProductAPITestCase(TestCase):
         self.assertEqual(result["data"]["rater_id"], self.other_user.id)
         self.assertEqual(result["data"]["rated_user_id"], self.user.id)
         self.assertLess(
-            result["data"]["manner_temperature"], 36.5
+            result["data"]["manner_rating_score"], 36.5
         )  # 부정적 평가로 온도 하락
 
     @patch("a_apis.service.products.ProductService.get_manner_ratings")
@@ -1437,8 +1459,11 @@ class ProductDistanceCalculationTestCase(TestCase):
         # 1. 일반 상품 목록 조회 테스트
         products_result = ProductService.get_products(user_id=self.user.id)
 
-        self.assertTrue(products_result["success"])
-        products = products_result["data"]["products"]
+        self.assertTrue(
+            products_result["success"],
+            f"Products result error: {products_result.get('message', 'Unknown error')}",
+        )
+        products = products_result["data"]
         self.assertGreater(len(products), 0)
 
         # 첫 번째 상품의 meeting_location 구조 검증
@@ -1459,13 +1484,11 @@ class ProductDistanceCalculationTestCase(TestCase):
         self.assertEqual(meeting_location["description"], location_description)
         self.assertIsNotNone(meeting_location["distance_text"])
 
-        print(f"상품 목록에서 meeting_location 구조: {meeting_location}")
-
         # 2. 내 상품 목록 조회 테스트
         user_products_result = ProductService.get_user_products(user_id=self.user.id)
 
         self.assertTrue(user_products_result["success"])
-        user_products = user_products_result["data"]["products"]
+        user_products = user_products_result["data"]
         self.assertGreater(len(user_products), 0)
 
         # 내 상품에서도 동일한 구조 확인
@@ -1479,8 +1502,6 @@ class ProductDistanceCalculationTestCase(TestCase):
                 user_meeting_location,
                 f"내 상품의 meeting_location에 {field} 필드가 없습니다",
             )
-
-        print(f"내 상품에서 meeting_location 구조: {user_meeting_location}")
 
     def test_meeting_location_structure_without_distance(self):
         """인증 동네가 없을 때 meeting_location 구조 테스트 (distance_text가 None)"""
@@ -1844,6 +1865,7 @@ class CategorySuggestionTestCase(TestCase):
             },
         ]
 
+        # 각 테스트 케이스 실행
         for case in test_cases:
             print(
                 f"\n테스트: {case['description']} - 입력: '{case['title']}' (길이: {len(case['title'])})"
@@ -1870,7 +1892,10 @@ class CategorySuggestionTestCase(TestCase):
 
                 self.assertTrue(
                     found_category,
-                    f"{case['description']}: 예상 카테고리 ID {case['expected_category_id']}가 결과에 없음",
+                    case.get(
+                        "message",
+                        f"Expected category ID {case['expected_category_id']} not found",
+                    ),
                 )
                 print(f"  ✓ 예상 카테고리 ID {case['expected_category_id']} 확인됨")
 
@@ -1920,6 +1945,7 @@ class CategorySuggestionTestCase(TestCase):
         print(f"\n=== 1글자 유효 키워드 테스트 (추가 검증) ===")
         for keyword in valid_one_char_keywords:
             print(f"\n테스트 키워드: '{keyword}' (길이: {len(keyword)})")
+
             result = ProductService.suggest_categories(keyword)
 
             self.assertTrue(result["success"], f"'{keyword}' 키워드 처리 실패")
@@ -2018,3 +2044,204 @@ class CategorySuggestionTestCase(TestCase):
         print(
             "✅ 테스트 완료: 1글자 키워드를 포함한 다양한 입력에 대한 카테고리 추천이 정상 동작합니다!"
         )
+
+
+class GeographicProductFilterTestCase(TestCase):
+    def setUp(self):
+        """지리적 필터링 테스트 셋업"""
+        self.client = Client()
+
+        # 테스트 사용자 생성
+        self.user = User.objects.create_user(
+            username="test@example.com",
+            email="test@example.com",
+            password="testpassword123",
+            nickname="테스터",
+            phone_number="01012345678",
+            is_email_verified=True,
+        )
+
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+
+        # 지역 정보 생성 (서울 강남구)
+        self.sido = SidoRegion.objects.create(code="11", name="서울특별시")
+        self.sigungu = SigunguRegion.objects.create(
+            code="11680", sido=self.sido, name="강남구"
+        )
+
+        # 강남역 중심 (37.4979, 127.0276)
+        self.gangnam_location = Point(127.0276, 37.4979, srid=4326)
+        self.gangnam_region = EupmyeondongRegion.objects.create(
+            code="1168000",
+            sigungu=self.sigungu,
+            name="강남동",
+            center_coordinates=self.gangnam_location,
+        )
+
+        # 잠실역 중심 (37.5133, 127.1000) - 강남역에서 약 5km 거리
+        self.jamsil_location = Point(127.1000, 37.5133, srid=4326)
+        self.jamsil_region = EupmyeondongRegion.objects.create(
+            code="1168001",
+            sigungu=self.sigungu,
+            name="잠실동",
+            center_coordinates=self.jamsil_location,
+        )
+
+        # 역삼역 중심 (37.5006, 127.0356) - 강남역에서 약 1km 거리
+        self.yeoksam_location = Point(127.0356, 37.5006, srid=4326)
+        self.yeoksam_region = EupmyeondongRegion.objects.create(
+            code="1168002",
+            sigungu=self.sigungu,
+            name="역삼동",
+            center_coordinates=self.yeoksam_location,
+        )
+
+        # 사용자 활동 지역 설정 (강남역 중심)
+        UserActivityRegion.objects.create(
+            user=self.user,
+            activity_area=self.gangnam_region,
+            priority=1,
+            location=self.gangnam_location,
+        )
+
+        # 카테고리 생성
+        self.category = ProductCategory.objects.create(name="전자제품")
+
+        # 테스트 상품들 생성
+        # 1. 강남역 근처 상품 (3km 이내)
+        self.product_gangnam = Product.objects.create(
+            user=self.user,
+            title="강남 상품",
+            description="강남역 근처 상품",
+            price=10000,
+            trade_type="sale",
+            category=self.category,
+            region=self.gangnam_region,
+            status="new",
+        )
+
+        # 2. 역삼역 근처 상품 (3km 이내)
+        self.product_yeoksam = Product.objects.create(
+            user=self.user,
+            title="역삼 상품",
+            description="역삼역 근처 상품",
+            price=20000,
+            trade_type="sale",
+            category=self.category,
+            region=self.yeoksam_region,
+            status="new",
+        )
+
+        # 3. 잠실역 근처 상품 (3km 이상 거리)
+        self.product_jamsil = Product.objects.create(
+            user=self.user,
+            title="잠실 상품",
+            description="잠실역 근처 상품",
+            price=30000,
+            trade_type="sale",
+            category=self.category,
+            region=self.jamsil_region,
+            status="new",
+        )
+
+    def test_geographic_filtering_within_3km(self):
+        """3km 이내 상품만 조회되는지 테스트"""
+        url = "/api/products"
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"}
+
+        response = self.client.get(url, **headers)
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        if not data["success"]:
+            print(f"Error: {data}")
+        self.assertTrue(data["success"])
+
+        # 3km 이내 상품만 조회되어야 함 (강남, 역삼 상품만)
+        product_ids = [product["id"] for product in data["data"]]
+        self.assertIn(self.product_gangnam.id, product_ids)
+        self.assertIn(self.product_yeoksam.id, product_ids)
+        self.assertNotIn(self.product_jamsil.id, product_ids)  # 3km 이상 거리
+
+        # 메시지 확인
+        self.assertIn("3km 이내", data["message"])
+        print("✅ 3km 이내 상품 필터링 테스트 통과")
+
+    def test_geographic_filtering_specific_region(self):
+        """특정 지역 ID로 필터링할 때 3km 범위 적용 테스트"""
+        url = "/api/products"
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"}
+
+        # 역삼 지역 ID로 필터링
+        response = self.client.get(
+            url, {"region_id": self.yeoksam_region.id}, **headers
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertTrue(data["success"])
+
+        # 역삼 중심에서 3km 이내 상품들이 조회되어야 함
+        product_ids = [product["id"] for product in data["data"]]
+        self.assertIn(self.product_gangnam.id, product_ids)  # 역삼에서 1km 거리
+        self.assertIn(self.product_yeoksam.id, product_ids)  # 역삼 지역
+
+        # 메시지 확인
+        self.assertIn("역삼동 주변 3km", data["message"])
+        print("✅ 특정 지역 3km 범위 필터링 테스트 통과")
+
+    def test_geographic_filtering_no_user_region(self):
+        """사용자 활동 지역이 없을 때는 모든 상품 조회"""
+        # 새로운 사용자 생성 (활동 지역 설정 안함)
+        new_user = User.objects.create_user(
+            username="newuser@example.com",
+            email="newuser@example.com",
+            password="password123",
+            nickname="새유저",
+            phone_number="01011111111",
+            is_email_verified=True,
+        )
+
+        refresh = RefreshToken.for_user(new_user)
+        access_token = str(refresh.access_token)
+
+        url = "/api/products"
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {access_token}"}
+
+        response = self.client.get(url, **headers)
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertTrue(data["success"])
+
+        # 지리적 필터링이 적용되지 않아 모든 상품이 조회되어야 함
+        product_ids = [product["id"] for product in data["data"]]
+        self.assertIn(self.product_gangnam.id, product_ids)
+        self.assertIn(self.product_yeoksam.id, product_ids)
+        self.assertIn(self.product_jamsil.id, product_ids)
+        print("✅ 활동 지역 없는 사용자 전체 상품 조회 테스트 통과")
+
+    def test_geographic_filtering_with_keyword_search(self):
+        """키워드 검색과 지리적 필터링 조합 테스트"""
+        url = "/api/products"
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"}
+
+        # "강남" 키워드로 검색 + 지리적 필터링
+        response = self.client.get(url, {"search": "강남"}, **headers)
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertTrue(data["success"])
+
+        # 키워드에 맞고 3km 이내인 상품만 조회
+        product_ids = [product["id"] for product in data["data"]]
+        self.assertIn(self.product_gangnam.id, product_ids)  # 키워드 매치 + 3km 이내
+        self.assertNotIn(self.product_yeoksam.id, product_ids)  # 키워드 불일치
+        self.assertNotIn(self.product_jamsil.id, product_ids)  # 3km 이상 거리
+        print("✅ 키워드 검색 + 지리적 필터링 조합 테스트 통과")

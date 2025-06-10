@@ -76,6 +76,60 @@ def suggest_categories(request, title: str):
     return ProductService.suggest_categories(title)
 
 
+# 새로운 API 엔드포인트들 (구체적인 경로를 먼저 정의)
+@router.get("/nearby-keyword")
+def get_products_by_keyword_in_region(
+    request, keyword: str, radius: float = 3.0, limit: int = 30
+):
+    """
+    활동지역 범위 내 키워드 관련 상품 추천 API
+
+    사용자의 활동지역을 중심으로 지정된 반경 내에서 키워드와 관련된 상품을 추천합니다.
+
+    Parameters:
+        keyword: 검색할 키워드
+        radius: 검색 반경 (km 단위, 기본값 3km)
+        limit: 반환할 상품 개수 (기본값 30개)
+
+    Returns:
+        상품 목록과 검색 정보
+    """
+    return ProductService.get_products_by_keyword_in_region(
+        user_id=request.user.id, keyword=keyword, radius=radius, limit=limit
+    )
+
+
+@router.get("/user/{user_id}/products")
+def get_user_sales_products(
+    request,
+    user_id: int,
+    status: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+):
+    """
+    특정 유저의 판매 상품 목록 조회 API
+
+    특정 사용자가 판매 중인 상품 목록을 조회합니다.
+
+    Parameters:
+        user_id: 조회할 사용자 ID
+        status: 필터링할 상품 상태 (new, reserved, soldout)
+        page: 페이지 번호 (기본값 1)
+        page_size: 페이지 크기 (기본값 20)
+
+    Returns:
+        해당 사용자의 상품 목록과 페이지네이션 정보
+    """
+    return ProductService.get_user_sales_products(
+        user_id=request.user.id,
+        target_user_id=user_id,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+
+
 # 나머지 라우트 등록
 @router.post("", response=ProductResponseSchema)
 @transaction.atomic

@@ -1890,14 +1890,7 @@ class CategorySuggestionTestCase(TestCase):
                         found_category = True
                         break
 
-                self.assertTrue(
-                    found_category,
-                    case.get(
-                        "message",
-                        f"Expected category ID {case['expected_category_id']} not found",
-                    ),
-                )
-                print(f"  ✓ 예상 카테고리 ID {case['expected_category_id']} 확인됨")
+                self.assertTrue(found_category, case["message"])
 
             # 데이터 개수 검증 (expected_data_count가 있는 경우에만)
             if "expected_data_count" in case:
@@ -1906,7 +1899,6 @@ class CategorySuggestionTestCase(TestCase):
                     case["expected_data_count"],
                     f"{case['description']}: 반환된 카테고리 수가 예상과 다름",
                 )
-                print(f"  ✓ 예상 카테고리 개수 {case['expected_data_count']} 확인됨")
 
             self.assertEqual(
                 result["message"],
@@ -1914,24 +1906,13 @@ class CategorySuggestionTestCase(TestCase):
                 f"{case['description']}: 메시지가 예상과 다름",
             )
 
-            print(f"  ✓ 성공: {result['success']}")
-            print(f"  ✓ 메시지: {result['message']}")
-            print(f"  ✓ 카테고리 수: {len(result['data'])}")
-
-            if result["data"] and len(result["data"]) > 0:
-                try:
-                    categories_info = [
-                        {"id": cat.get("id"), "name": cat.get("name", "Unknown")}
-                        for cat in result["data"]
-                    ]
-                    print(f"  ✓ 추천 카테고리: {categories_info}")
-
-                    # 추가 정보: 카테고리 이름과 ID를 함께 표시
-                    for cat in categories_info:
-                        print(f"    - {cat['name']} (ID: {cat['id']})")
-                except Exception as e:
-                    print(f"  ! 카테고리 출력 오류: {e}")
-                    print(f"  ! 데이터 구조: {result['data']}")
+            # 추가 정보: 카테고리 이름과 ID를 함께 표시
+            if result["data"]:
+                categories_info = [
+                    {"id": cat.get("id"), "name": cat.get("name", "Unknown")}
+                    for cat in result["data"]
+                ]
+                print(f"추천 카테고리: {categories_info}")
 
         # 경계값 테스트 - 테스트 환경에서 실제로 매핑되는 1글자 키워드만 테스트
         # 테스트 환경에서 확실하게 매핑되는 키워드만 포함
@@ -2245,3 +2226,294 @@ class GeographicProductFilterTestCase(TestCase):
         self.assertNotIn(self.product_yeoksam.id, product_ids)  # 키워드 불일치
         self.assertNotIn(self.product_jamsil.id, product_ids)  # 3km 이상 거리
         print("✅ 키워드 검색 + 지리적 필터링 조합 테스트 통과")
+
+
+class PriceOfferCountingTestCase(TestCase):
+    """가격 제안 카운팅 테스트"""
+
+    def setUp(self):
+        """테스트 셋업: 사용자들과 상품 생성"""
+        # 판매자 생성
+        self.seller = User.objects.create_user(
+            username="seller@example.com",
+            email="seller@example.com",
+            password="sellerpassword123",
+            nickname="판매자",
+            phone_number="01012345678",
+            is_email_verified=True,
+        )
+
+        # 구매자 1 생성
+        self.buyer1 = User.objects.create_user(
+            username="buyer1@example.com",
+            email="buyer1@example.com",
+            password="buyer1password123",
+            nickname="구매자1",
+            phone_number="01087654321",
+            is_email_verified=True,
+        )
+
+        # 구매자 2 생성
+        self.buyer2 = User.objects.create_user(
+            username="buyer2@example.com",
+            email="buyer2@example.com",
+            password="buyer2password123",
+            nickname="구매자2",
+            phone_number="01011112222",
+            is_email_verified=True,
+        )
+
+        # 지역 정보 생성
+        self.sido = SidoRegion.objects.create(code="11", name="서울특별시")
+        self.sigungu = SigunguRegion.objects.create(
+            code="11000", sido=self.sido, name="중구"
+        )
+
+        location = Point(126.9780, 37.5665, srid=4326)
+
+        self.eupmyeondong = EupmyeondongRegion.objects.create(
+            code="1100000",
+            sigungu=self.sigungu,
+            name="명동",
+            center_coordinates=location,
+        )
+
+        # 사용자들의 활동 지역 설정
+        for user in [self.seller, self.buyer1, self.buyer2]:
+            UserActivityRegion.objects.create(
+                user=user,
+                activity_area=self.eupmyeondong,
+                priority=1,
+                location=location,
+            )
+
+        # 카테고리 생성
+        self.category = ProductCategory.objects.create(name="전자제품", order=1)
+
+        # 가격 제안을 허용하는 상품 생성
+        self.product_with_offers = Product.objects.create(
+            user=self.seller,
+            title="가격제안 가능한 상품",
+            description="가격 제안을 받습니다",
+            price=100000,
+            trade_type="sale",
+            accept_price_offer=True,  # 가격 제안 허용
+            category=self.category,
+            region=self.eupmyeondong,
+            refresh_at=timezone.now(),
+        )
+
+        # 가격 제안을 허용하지 않는 상품 생성
+        self.product_without_offers = Product.objects.create(
+            user=self.seller,
+            title="가격제안 불가능한 상품",
+            description="가격 제안을 받지 않습니다",
+            price=50000,
+            trade_type="sale",
+            accept_price_offer=False,  # 가격 제안 불허용
+            category=self.category,
+            region=self.eupmyeondong,
+            refresh_at=timezone.now(),
+        )
+
+        # JWT 토큰 생성
+        self.seller_token = str(RefreshToken.for_user(self.seller).access_token)
+        self.buyer1_token = str(RefreshToken.for_user(self.buyer1).access_token)
+        self.buyer2_token = str(RefreshToken.for_user(self.buyer2).access_token)
+
+    def test_price_offer_counting_single_user(self):
+        """단일 사용자의 가격 제안 카운팅 테스트"""
+        # 초기 상태: 가격 제안 개수가 0인지 확인
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["price_offer_count"], 0)
+        self.assertTrue(result["data"]["accept_price_offer"])
+
+        # 구매자1이 가격 제안 1개 생성
+        offer1 = PriceOffer.objects.create(
+            product=self.product_with_offers,
+            user=self.buyer1,
+            price=90000,
+            status="pending",
+        )
+
+        # 가격 제안 카운트 확인 (1개)
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 1)
+        print("✅ 단일 사용자 1개 가격 제안 카운팅 테스트 통과")
+
+        # 구매자1이 추가 가격 제안 생성 (같은 사용자의 중복 제안)
+        offer2 = PriceOffer.objects.create(
+            product=self.product_with_offers,
+            user=self.buyer1,
+            price=95000,
+            status="pending",
+        )
+
+        # 가격 제안 카운트 확인 (2개)
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 2)
+        print("✅ 단일 사용자 2개 가격 제안 카운팅 테스트 통과")
+
+    def test_price_offer_counting_multiple_users(self):
+        """여러 사용자의 가격 제안 카운팅 테스트"""
+        # 구매자1이 가격 제안 3개 생성
+        for i, price in enumerate([90000, 85000, 92000]):
+            PriceOffer.objects.create(
+                product=self.product_with_offers,
+                user=self.buyer1,
+                price=price,
+                status="pending",
+            )
+
+        # 구매자2가 가격 제안 2개 생성
+        for i, price in enumerate([88000, 93000]):
+            PriceOffer.objects.create(
+                product=self.product_with_offers,
+                user=self.buyer2,
+                price=price,
+                status="pending",
+            )
+
+        # 전체 가격 제안 카운트 확인 (3 + 2 = 5개)
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 5)
+        print("✅ 여러 사용자 총 5개 가격 제안 카운팅 테스트 통과")
+
+    def test_price_offer_counting_only_pending_status(self):
+        """pending 상태인 가격 제안만 카운팅되는지 테스트"""
+        # pending 상태 가격 제안 2개 생성
+        PriceOffer.objects.create(
+            product=self.product_with_offers,
+            user=self.buyer1,
+            price=90000,
+            status="pending",
+        )
+
+        PriceOffer.objects.create(
+            product=self.product_with_offers,
+            user=self.buyer2,
+            price=85000,
+            status="pending",
+        )
+
+        # accepted 상태 가격 제안 1개 생성
+        PriceOffer.objects.create(
+            product=self.product_with_offers,
+            user=self.buyer1,
+            price=95000,
+            status="accepted",
+        )
+
+        # rejected 상태 가격 제안 1개 생성
+        PriceOffer.objects.create(
+            product=self.product_with_offers,
+            user=self.buyer2,
+            price=80000,
+            status="rejected",
+        )
+
+        # pending 상태인 가격 제안만 카운팅되는지 확인 (2개만)
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 2)
+        print("✅ pending 상태 가격 제안만 카운팅 테스트 통과")
+
+    def test_price_offer_counting_with_disabled_offers(self):
+        """가격 제안 불허용 상품의 카운팅 테스트"""
+        # 가격 제안이 불허용된 상품에 가격 제안을 강제로 생성
+        PriceOffer.objects.create(
+            product=self.product_without_offers,
+            user=self.buyer1,
+            price=40000,
+            status="pending",
+        )
+
+        # 가격 제안 불허용 상품도 실제 DB에 가격 제안이 있으면 카운팅됨
+        result = ProductService.get_product(
+            product_id=self.product_without_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 1)
+        self.assertFalse(result["data"]["accept_price_offer"])  # 가격 제안 불허용
+        print("✅ 가격 제안 불허용 상품 카운팅 테스트 통과")
+
+    def test_price_offer_counting_large_numbers(self):
+        """대량 가격 제안 카운팅 테스트 (성능 확인)"""
+        # 구매자1이 10개 가격 제안
+        for i in range(10):
+            PriceOffer.objects.create(
+                product=self.product_with_offers,
+                user=self.buyer1,
+                price=90000 + (i * 1000),
+                status="pending",
+            )
+
+        # 구매자2가 15개 가격 제안
+        for i in range(15):
+            PriceOffer.objects.create(
+                product=self.product_with_offers,
+                user=self.buyer2,
+                price=80000 + (i * 500),
+                status="pending",
+            )
+
+        # 총 25개 가격 제안 카운팅 확인
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 25)
+        print("✅ 대량 가격 제안 (25개) 카운팅 테스트 통과")
+
+    def test_price_offer_counting_via_api(self):
+        """API를 통한 가격 제안 카운팅 테스트"""
+        client = Client()
+
+        # 가격 제안 몇 개 생성
+        for i, price in enumerate([90000, 85000, 92000]):
+            PriceOffer.objects.create(
+                product=self.product_with_offers,
+                user=self.buyer1 if i % 2 == 0 else self.buyer2,
+                price=price,
+                status="pending",
+            )
+
+        # API를 통해 상품 상세 조회
+        url = f"/api/products/{self.product_with_offers.id}"
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.seller_token}"}
+
+        response = client.get(url, **headers)
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["data"]["price_offer_count"], 3)
+        self.assertTrue(data["data"]["accept_price_offer"])
+
+        print("✅ API를 통한 가격 제안 카운팅 테스트 통과")
+
+    def test_price_offer_count_zero_when_no_offers(self):
+        """가격 제안이 없을 때 0 카운팅 테스트"""
+        result = ProductService.get_product(
+            product_id=self.product_with_offers.id, user_id=self.seller.id
+        )
+
+        self.assertEqual(result["data"]["price_offer_count"], 0)
+        self.assertTrue(result["data"]["accept_price_offer"])
+        print("✅ 가격 제안 없을 때 0 카운팅 테스트 통과")

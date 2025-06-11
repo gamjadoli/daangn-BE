@@ -2,6 +2,7 @@ import math
 from datetime import datetime, timedelta
 
 from a_apis.models import InterestProduct, Product, ProductCategory, ProductImage
+from a_apis.models.chat import ChatRoom
 from a_apis.service.files import FileService
 from a_user.models import MannerRating, Review
 
@@ -211,7 +212,6 @@ class ProductService:
             )
 
             # 활성화된 채팅방 개수 서브쿼리
-            from a_apis.models.chat import ChatRoom
 
             chat_count = (
                 ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
@@ -577,7 +577,6 @@ class ProductService:
             )
 
             # 활성화된 채팅방 개수 서브쿼리
-            from a_apis.models.chat import ChatRoom
 
             chat_count = (
                 ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
@@ -733,7 +732,6 @@ class ProductService:
             )
 
             # 활성화된 채팅방 개수 서브쿼리
-            from a_apis.models.chat import ChatRoom
 
             chat_count = (
                 ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
@@ -937,12 +935,20 @@ class ProductService:
         if product.user.profile_img:
             seller_info["profile_image_url"] = product.user.profile_img.url
 
+        # 가격 제안 개수 계산
+        from a_user.models import PriceOffer
+
+        price_offer_count = PriceOffer.objects.filter(
+            product=product, status="pending"
+        ).count()
+
         return {
             "id": product.id,
             "title": product.title,
             "trade_type": product.trade_type,
             "price": product.price,
             "accept_price_offer": product.accept_price_offer,
+            "price_offer_count": price_offer_count,
             "description": product.description,
             "view_count": product.view_count,
             "status": product.status,
@@ -956,6 +962,9 @@ class ProductService:
             "is_interested": is_interested,
             "category": category_data,
             "region_name": region_name,
+            "chat_count": ChatRoom.objects.filter(
+                product=product, status="active"
+            ).count(),
         }
 
     # 카테고리 관련 메서드 추가
@@ -1285,7 +1294,6 @@ class ProductService:
                     }
 
             # 채팅방 확인 (제공된 경우)
-            from a_apis.models.chat import ChatRoom
 
             chat_room = None
             if chat_room_id:
@@ -1911,7 +1919,6 @@ class ProductService:
             )
 
             # 활성화된 채팅방 개수 서브쿼리
-            from a_apis.models.chat import ChatRoom
 
             chat_count = (
                 ChatRoom.objects.filter(product=OuterRef("pk"), status="active")
@@ -2044,7 +2051,6 @@ class ProductService:
             )
 
             # 활성화된 채팅방 개수 서브쿼리
-            from a_apis.models.chat import ChatRoom
 
             chat_count = (
                 ChatRoom.objects.filter(product=OuterRef("pk"), status="active")

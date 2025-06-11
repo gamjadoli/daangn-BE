@@ -133,6 +133,7 @@ class ProductDetailSchema(Schema):
     price: Optional[int] = Field(None, description="판매 가격")
     category: Optional[ProductCategorySchema] = Field(None, description="상품 카테고리")
     accept_price_offer: bool = Field(..., description="가격 제안 허용 여부")
+    price_offer_count: int = Field(0, description="현재 받은 가격 제안 개수")
     description: str = Field(..., description="상품 설명")
     view_count: int = Field(..., description="조회수")
     status: str = Field(
@@ -147,6 +148,7 @@ class ProductDetailSchema(Schema):
     images: List[ProductImageSchema] = Field([], description="상품 이미지 목록")
     is_interested: bool = Field(False, description="관심상품 등록 여부")
     region_name: Optional[str] = Field(None, description="상품이 등록된 동네명")
+    chat_count: int = Field(0, description="활성화된 채팅방 수")
 
 
 class ProductListItemSchema(Schema):

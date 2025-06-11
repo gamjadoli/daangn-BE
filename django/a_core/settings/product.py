@@ -52,6 +52,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
+    "https://localhost:3000",
+    "https://localhost:5173",
+    "https://localhost:8000",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://dangma.store",
@@ -61,6 +64,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",  # Vite dev server
     "http://localhost:3000",  # React / Next.js dev server
     "http://localhost:8000",  # Django dev server
+    "https://localhost:5173",  # Vite dev server (HTTPS)
+    "https://localhost:3000",  # React / Next.js dev server (HTTPS)
+    "https://localhost:8000",  # Django dev server (HTTPS)
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False

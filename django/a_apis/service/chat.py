@@ -475,7 +475,7 @@ class ChatService:
             )
 
             # 상품 상태를 예약중으로 변경
-            if created and product.status == Product.Status.NEW:
+            if created and product.status == Product.Status.SELLING:
                 product.status = Product.Status.RESERVED
                 product.save(update_fields=["status", "updated_at"])
 
@@ -672,7 +672,7 @@ class ChatService:
                 # 상품 상태를 다시 판매중으로 변경 (이미 판매완료가 아닌 경우)
                 product = appointment.product
                 if product.status == Product.Status.RESERVED:
-                    product.status = Product.Status.NEW
+                    product.status = Product.Status.SELLING
                     product.save(update_fields=["status", "updated_at"])
             elif action == "complete":
                 if appointment.status not in [

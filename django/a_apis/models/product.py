@@ -39,7 +39,7 @@ class Product(CommonModel):
         SHARE = "share", "나눔하기"
 
     class Status(models.TextChoices):
-        NEW = "new", "판매중"
+        SELLING = "selling", "판매중"
         RESERVED = "reserved", "예약중"
         SOLDOUT = "soldout", "판매완료"
 
@@ -107,7 +107,7 @@ class Product(CommonModel):
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
-        default=Status.NEW,
+        default=Status.SELLING,
         verbose_name="상품 상태",
     )
     trade_complete_status = models.CharField(

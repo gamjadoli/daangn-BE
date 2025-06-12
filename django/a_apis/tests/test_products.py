@@ -122,7 +122,7 @@ class ProductAPITestCase(TestCase):
             description="테스트 상품 설명입니다.",
             meeting_location=Point(126.9780, 37.5665, srid=4326),
             location_description="서울시청 앞",
-            status="new",
+            status="selling",
             view_count=0,
         )
 
@@ -147,7 +147,7 @@ class ProductAPITestCase(TestCase):
                 "trade_type": "sale",
                 "description": "새 테스트 상품 설명입니다.",
                 "view_count": 0,
-                "status": "new",
+                "status": "selling",
                 "created_at": "2023-01-01T00:00:00Z",
                 "refresh_at": None,
                 "seller": {
@@ -214,7 +214,7 @@ class ProductAPITestCase(TestCase):
                     "id": 1,
                     "title": "상품1",
                     "price": 10000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -227,7 +227,7 @@ class ProductAPITestCase(TestCase):
                     "id": 2,
                     "title": "상품2",
                     "price": 20000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -240,7 +240,7 @@ class ProductAPITestCase(TestCase):
                     "id": 3,
                     "title": "상품3",
                     "price": 30000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -293,7 +293,7 @@ class ProductAPITestCase(TestCase):
                     "profile_image_url": None,
                     "rating_score": 36.5,
                 },
-                "status": "new",
+                "status": "selling",
                 "view_count": 1,
                 "created_at": "2023-01-01T00:00:00Z",
                 "refresh_at": None,
@@ -332,7 +332,7 @@ class ProductAPITestCase(TestCase):
                 "trade_type": "sale",
                 "description": "수정된 상품 설명입니다.",
                 "view_count": 0,
-                "status": "new",
+                "status": "selling",
                 "created_at": "2023-01-01T00:00:00Z",
                 "refresh_at": None,
                 "seller": {
@@ -473,7 +473,7 @@ class ProductAPITestCase(TestCase):
                     "id": 1,
                     "title": "상품1",
                     "price": 10000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -486,7 +486,7 @@ class ProductAPITestCase(TestCase):
                     "id": 2,
                     "title": "상품2",
                     "price": 20000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -499,7 +499,7 @@ class ProductAPITestCase(TestCase):
                     "id": 3,
                     "title": "상품3",
                     "price": 30000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -533,7 +533,7 @@ class ProductAPITestCase(TestCase):
                     "id": 1,
                     "title": "상품1",
                     "price": 10000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -550,7 +550,7 @@ class ProductAPITestCase(TestCase):
         }
 
         result = mock_get_user_products(
-            user_id=self.user.id, status="new", page=1, page_size=20
+            user_id=self.user.id, status="selling", page=1, page_size=20
         )
 
         # 응답 확인
@@ -568,7 +568,7 @@ class ProductAPITestCase(TestCase):
                     "id": 1,
                     "title": "관심상품1",
                     "price": 10000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -581,7 +581,7 @@ class ProductAPITestCase(TestCase):
                     "id": 2,
                     "title": "관심상품2",
                     "price": 20000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -594,7 +594,7 @@ class ProductAPITestCase(TestCase):
                     "id": 3,
                     "title": "관심상품3",
                     "price": 30000,
-                    "status": "new",
+                    "status": "selling",
                     "trade_type": "sale",
                     "created_at": "2023-01-01T00:00:00Z",
                     "refresh_at": None,
@@ -678,7 +678,7 @@ class ProductAPITestCase(TestCase):
                     "profile_image_url": None,
                     "rating_score": 36.5,
                 },
-                "status": "new",
+                "status": "selling",
                 "view_count": 0,
                 "created_at": "2023-01-01T00:00:00Z",
                 "refresh_at": current_time.isoformat(),
@@ -1890,7 +1890,10 @@ class CategorySuggestionTestCase(TestCase):
                         found_category = True
                         break
 
-                self.assertTrue(found_category, case["message"])
+                self.assertTrue(
+                    found_category,
+                    f"{case['description']}: 예상 카테고리 ID {case['expected_category_id']}가 결과에 없음",
+                )
 
             # 데이터 개수 검증 (expected_data_count가 있는 경우에만)
             if "expected_data_count" in case:
@@ -2100,7 +2103,7 @@ class GeographicProductFilterTestCase(TestCase):
             trade_type="sale",
             category=self.category,
             region=self.gangnam_region,
-            status="new",
+            status="selling",
         )
 
         # 2. 역삼역 근처 상품 (3km 이내)
@@ -2112,7 +2115,7 @@ class GeographicProductFilterTestCase(TestCase):
             trade_type="sale",
             category=self.category,
             region=self.yeoksam_region,
-            status="new",
+            status="selling",
         )
 
         # 3. 잠실역 근처 상품 (3km 이상 거리)
@@ -2124,7 +2127,7 @@ class GeographicProductFilterTestCase(TestCase):
             trade_type="sale",
             category=self.category,
             region=self.jamsil_region,
-            status="new",
+            status="selling",
         )
 
     def test_geographic_filtering_within_3km(self):

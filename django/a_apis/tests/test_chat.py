@@ -44,7 +44,7 @@ class ChatAPITestCase(TestCase):
             description="테스트 상품 설명",
             meeting_location=Point(126.9780, 37.5665, srid=4326),
             location_description="서울시청 앞",
-            status="new",
+            status="selling",
         )
 
         # API 클라이언트 설정
@@ -460,7 +460,7 @@ class ChatAPITestCase(TestCase):
 
         # 상품 상태가 다시 '판매중'으로 변경되었는지 확인
         self.product.refresh_from_db()
-        self.assertEqual(self.product.status, Product.Status.NEW)
+        self.assertEqual(self.product.status, Product.Status.SELLING)
 
         # 채팅방에 시스템 메시지가 생성되었는지 확인
         system_message = ChatMessage.objects.filter(

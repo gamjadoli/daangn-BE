@@ -77,7 +77,7 @@ def suggest_categories(request, title: str):
 
 
 # 새로운 API 엔드포인트들 (구체적인 경로를 먼저 정의)
-@router.get("/nearby-keyword")
+@router.get("/nearby-keyword", response=ProductListResponseSchema)
 def get_products_by_keyword_in_region(
     request, keyword: str, radius: float = 3.0, limit: int = 30
 ):
@@ -99,7 +99,7 @@ def get_products_by_keyword_in_region(
     )
 
 
-@router.get("/user/{user_id}/products")
+@router.get("/user/{user_id}/products", response=ProductListResponseSchema)
 def get_user_sales_products(
     request,
     user_id: int,
@@ -114,7 +114,7 @@ def get_user_sales_products(
 
     Parameters:
         user_id: 조회할 사용자 ID
-        status: 필터링할 상품 상태 (new, reserved, soldout)
+        status: 필터링할 상품 상태 (selling, reserved, soldout)
         page: 페이지 번호 (기본값 1)
         page_size: 페이지 크기 (기본값 20)
 
@@ -182,7 +182,7 @@ def list_products(
 
     필터링 옵션:
     - search: 검색어 (상품명, 설명 검색)
-    - status: 상품 상태 필터 (new: 판매중, reserved: 예약중, soldout: 판매완료)
+    - status: 상품 상태 필터 (selling: 판매중, reserved: 예약중, soldout: 판매완료)
     - trade_type: 거래 방식 필터 (sale: 판매하기, share: 나눔하기)
     - region_id: 특정 동네 ID 필터 (설정된 경우 해당 동네의 상품만 표시, 없으면 현재 활성화된 동네 기준)
 
@@ -193,10 +193,10 @@ def list_products(
     예시 엔드포인트:
     - 기본 조회: /api/products
     - 검색: /api/products?search=자전거
-    - 필터링: /api/products?status=new&trade_type=sale
+    - 필터링: /api/products?status=selling&trade_type=sale
     - 동네 필터링: /api/products?region_id=123
     - 페이징: /api/products?page=2&page_size=10
-    - 복합 쿼리: /api/products?search=자전거&status=new&region_id=123&page=2
+    - 복합 쿼리: /api/products?search=자전거&status=selling&region_id=123&page=2
 
     성공: 상품 목록과 페이징 정보 반환
     """

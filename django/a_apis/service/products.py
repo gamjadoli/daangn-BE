@@ -412,7 +412,7 @@ class ProductService:
             product.save(update_fields=["status", "updated_at"])
 
             status_display = {
-                "new": "판매중",
+                "selling": "판매중",
                 "reserved": "예약중",
                 "soldout": "판매완료",
             }.get(status, status)
@@ -835,7 +835,7 @@ class ProductService:
                 )
 
             status_display = {
-                "new": "판매중",
+                "selling": "판매중",
                 "reserved": "예약중",
                 "soldout": "판매완료",
             }.get(status, "전체")
@@ -1888,7 +1888,7 @@ class ProductService:
                 Product.objects.exclude(user_id=user_id)
                 .filter(
                     meeting_location__dwithin=(user_location, radius_in_degrees),
-                    status="new",  # 판매중인 상품만
+                    status="selling",  # 판매중인 상품만
                 )
                 .annotate(distance=Distance("meeting_location", user_location))
                 .order_by("distance")
@@ -2008,7 +2008,7 @@ class ProductService:
         Args:
             user_id: 요청한 사용자 ID (권한 확인용)
             target_user_id: 조회할 타겟 사용자 ID
-            status: 필터링할 상품 상태 (new, reserved, soldout)
+            status: 필터링할 상품 상태 (selling, reserved, soldout)
             page: 페이지 번호
             page_size: 페이지 크기
 
@@ -2145,7 +2145,7 @@ class ProductService:
             }
 
             status_display = {
-                "new": "판매중",
+                "selling": "판매중",
                 "reserved": "예약중",
                 "soldout": "판매완료",
             }.get(status, "전체")

@@ -137,7 +137,8 @@ class ProductDetailSchema(Schema):
     description: str = Field(..., description="상품 설명")
     view_count: int = Field(..., description="조회수")
     status: str = Field(
-        ..., description="상품 상태 (new: 판매중, reserved: 예약중, soldout: 판매완료)"
+        ...,
+        description="상품 상태 (selling: 판매중, reserved: 예약중, soldout: 판매완료)",
     )
     created_at: str = Field(..., description="등록 일시")
     refresh_at: Optional[str] = Field(None, description="끌어올린 일시")
@@ -158,7 +159,7 @@ class ProductListItemSchema(Schema):
     title: str = Field(..., description="상품 제목")
     description: str = Field(..., description="상품 설명")
     price: Optional[int] = Field(None, description="판매 가격")
-    status: str = Field(..., description="상품 상태 (new, reserved, soldout)")
+    status: str = Field(..., description="상품 상태 (selling, reserved, soldout)")
     trade_type: str = Field(..., description="거래 방식 (sale, share)")
     created_at: str = Field(..., description="등록 일시")
     refresh_at: Optional[str] = Field(None, description="끌어올린 일시")
@@ -197,14 +198,14 @@ class ProductStatusUpdateSchema(Schema):
 
     status: str = Field(
         ...,
-        description="변경할 상태 (new: 판매중, reserved: 예약중, soldout: 판매완료)",
+        description="변경할 상태 (selling: 판매중, reserved: 예약중, soldout: 판매완료)",
     )
 
     @validator("status")
     def validate_status(cls, v):
-        if v not in ["new", "reserved", "soldout"]:
+        if v not in ["selling", "reserved", "soldout"]:
             raise ValueError(
-                "상품 상태는 'new', 'reserved', 'soldout' 중 하나여야 합니다."
+                "상품 상태는 'selling', 'reserved', 'soldout' 중 하나여야 합니다."
             )
         return v
 
@@ -214,7 +215,7 @@ class ProductSearchSchema(Schema):
 
     keyword: Optional[str] = Field(None, description="검색어")
     status: Optional[str] = Field(
-        None, description="상품 상태로 필터링 (new, reserved, soldout)"
+        None, description="상품 상태로 필터링 (selling, reserved, soldout)"
     )
     trade_type: Optional[str] = Field(
         None, description="거래 방식으로 필터링 (sale, share)"

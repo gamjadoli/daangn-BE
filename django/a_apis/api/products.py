@@ -99,7 +99,7 @@ def get_products_by_keyword_in_region(
     )
 
 
-@router.get("/user/{user_id}/products", response=ProductListResponseSchema)
+@router.get("/users/{user_id}", response=ProductListResponseSchema)
 def get_user_sales_products(
     request,
     user_id: int,
@@ -110,11 +110,14 @@ def get_user_sales_products(
     """
     특정 유저의 판매 상품 목록 조회 API
 
-    특정 사용자가 판매 중인 상품 목록을 조회합니다.
+    특정 사용자의 판매 상품 목록을 조회합니다.
 
-    Parameters:
-        user_id: 조회할 사용자 ID
-        status: 필터링할 상품 상태 (selling, reserved, soldout)
+    경로 파라미터:
+        user_id: 조회할 사용자 ID (RESTful 방식: /api/products/users/123)
+
+    쿼리 파라미터:
+        status: 상품 상태 필터 (selling: 판매중, reserved: 예약중, soldout: 판매완료)
+               값을 넣지 않으면 모든 상태의 상품이 표시됨
         page: 페이지 번호 (기본값 1)
         page_size: 페이지 크기 (기본값 20)
 

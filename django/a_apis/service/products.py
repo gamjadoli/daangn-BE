@@ -2009,6 +2009,8 @@ class ProductService:
             user_id: 요청한 사용자 ID (권한 확인용)
             target_user_id: 조회할 타겟 사용자 ID
             status: 필터링할 상품 상태 (selling, reserved, soldout)
+                   None인 경우 모든 상태의 상품 조회
+                   RESTful URL: /api/products/users/{user_id}?status={status}
             page: 페이지 번호
             page_size: 페이지 크기
 
@@ -2107,22 +2109,31 @@ class ProductService:
                         user_id=user_id, product_id=product.id
                     ).exists()
 
+                # 거래장소 정보 구조체로 구성
+                meeting_location = None
+                if product.meeting_location:
+                    meeting_location = {
+                        "latitude": product.meeting_location.y,
+                        "longitude": product.meeting_location.x,
+                        "description": product.location_description,
+                        "distance_text": distance_text,
+                    }
+
                 product_data = {
                     "id": product.id,
                     "title": product.title,
+                    "description": product.description,  # 설명 추가
                     "price": product.price,
                     "trade_type": product.trade_type,
                     "status": product.status,
                     "image_url": image_url,
                     "region_name": product.region.name if product.region else None,
-                    "distance_text": distance_text,
+                    "meeting_location": meeting_location,  # 위치 정보를 구조체로 변경
                     "interest_count": product.interest_count or 0,
                     "chat_count": product.chat_count or 0,
-                    "created_at": product.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    "created_at": product.created_at.isoformat(),  # ISO 형식으로 변경
                     "refresh_at": (
-                        product.refresh_at.strftime("%Y-%m-%d %H:%M:%S")
-                        if product.refresh_at
-                        else None
+                        product.refresh_at.isoformat() if product.refresh_at else None
                     ),
                     "is_interested": is_interested,
                     "seller_nickname": product.user.nickname,
@@ -2144,6 +2155,7 @@ class ProductService:
                 "has_previous": page > 1,
             }
 
+            # 상태 표시 메시지 설정
             status_display = {
                 "selling": "판매중",
                 "reserved": "예약중",
@@ -2153,14 +2165,11 @@ class ProductService:
             return {
                 "success": True,
                 "message": f"{target_user.nickname}님의 {status_display} 상품 목록을 조회했습니다.",
-                "data": {
-                    "products": product_list,
-                    "pagination": pagination_data,
-                    "target_user": {
-                        "id": target_user.id,
-                        "nickname": target_user.nickname,
-                    },
-                },
+                "data": product_list,
+                "total_count": total_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
             }
         except User.DoesNotExist:
             return {"success": False, "message": "존재하지 않는 사용자입니다."}

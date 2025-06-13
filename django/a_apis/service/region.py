@@ -11,6 +11,7 @@ from a_apis.models.region import (
     SigunguRegion,
     UserActivityRegion,
 )
+from a_user.models import User  # User 모델 추가
 
 from django.conf import settings
 from django.contrib.gis.db.models.functions import Distance
@@ -399,7 +400,7 @@ class RegionService:
                 print(f"사용자 ID {user_id}의 활동지역이 없습니다.")
                 return {
                     "success": True,
-                    "message": "등록된 활동지역이 없습니다.",
+                    "message": "인증된 동네가 없습니다.",
                     "data": [],
                 }
 
@@ -561,4 +562,102 @@ class RegionService:
                 "success": False,
                 "message": f"근처 동네 조회 실패: {str(e)}",
                 "performance": {"error_time": round(error_time, 4)},
+            }
+
+    @staticmethod
+    def change_active_region(request, region_id: int):
+        """대표 동네 변경 서비스
+
+        인증한 동네 중 하나를 대표 동네로 설정합니다.
+
+        Args:
+            request: HTTP 요청 객체
+            region_id: 대표 동네로 설정할 동네 ID
+        """
+        try:
+            # 인증된 사용자 확인
+            user = None
+            if hasattr(request, "user") and isinstance(request.user, User):
+                user = request.user
+            elif hasattr(request, "auth") and request.auth:
+                from rest_framework_simplejwt.tokens import AccessToken
+
+                access_token = AccessToken(request.auth)
+                user_id = access_token["user_id"]
+                user = User.objects.get(id=user_id)
+
+            if not user:
+                return {"success": False, "message": "인증되지 않은 사용자입니다."}
+
+            # 해당 동네가 사용자의 인증된 동네인지 확인
+            user_region = UserActivityRegion.objects.filter(
+                user=user, activity_area_id=region_id
+            ).first()
+
+            if not user_region:
+                return {"success": False, "message": "인증되지 않은 동네입니다."}
+
+            # 이미 활성 동네(우선순위 1)인 경우
+            if user_region.priority == 1:
+                current_region = {
+                    "id": user_region.activity_area.id,
+                    "name": user_region.activity_area.name,
+                    "code": user_region.activity_area.code,
+                    "priority": user_region.priority,
+                }
+                return {
+                    "success": True,
+                    "message": "이미 대표 동네로 설정되어 있습니다.",
+                    "current_region": current_region,
+                }
+
+            # 동네 우선순위 변경 (현재 우선순위와 1순위 동네 교체)
+            current_priority = user_region.priority
+
+            # 기존 1순위 동네 찾기
+            previous_primary_region = UserActivityRegion.objects.filter(
+                user=user, priority=1
+            ).first()
+
+            # 트랜잭션으로 우선순위 교체
+            with transaction.atomic():
+                # 임시 우선순위로 먼저 변경 (제약조건 충돌 방지)
+                if previous_primary_region:
+                    # 임시로 높은 값(100)으로 설정하여 충돌 방지
+                    previous_primary_region.priority = 100
+                    previous_primary_region.save(
+                        update_fields=["priority", "updated_at"]
+                    )
+
+                # 새로운 동네를 1순위로 변경
+                user_region.priority = 1
+                user_region.save(update_fields=["priority", "updated_at"])
+
+                # 기존 1순위 동네의 우선순위를 현재 동네의 우선순위로 변경
+                if previous_primary_region:
+                    previous_primary_region.priority = current_priority
+                    previous_primary_region.save(
+                        update_fields=["priority", "updated_at"]
+                    )
+
+            # 새로 설정된 활성 동네 정보만 반환
+            current_region = {
+                "id": user_region.activity_area.id,
+                "name": user_region.activity_area.name,
+                "code": user_region.activity_area.code,
+                "priority": 1,  # 이제 우선순위가 1이 됨
+            }
+
+            return {
+                "success": True,
+                "message": f"대표 동네가 '{user_region.activity_area.name}'(으)로 변경되었습니다.",
+                "current_region": current_region,
+            }
+
+        except User.DoesNotExist:
+            return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"동네 변경 중 오류가 발생했습니다: {str(e)}",
             }

@@ -183,24 +183,6 @@ def change_password(request, data: PasswordChangeSchema):
     return UserService.change_user_password(request, data)
 
 
-@router.put("/change-active-region/{region_id}", response=ActiveRegionResponseSchema)
-def change_active_region(request, region_id: int):
-    """
-    활성 동네 변경 API
-
-    인증한 동네 중에서 활성화할 동네를 변경
-    지정한 동네가 현재 1순위가 아니라면 해당 동네의 우선순위를 1로 변경하고
-    기존 1순위 동네의 우선순위를 변경된 동네의 우선순위로 설정
-
-    경로 파라미터:
-    - region_id: 활성화할 동네 ID
-
-    성공: 변경된 활성 동네 정보 반환
-    실패: 오류 메시지
-    """
-    return UserService.change_active_region(request, region_id)
-
-
 @router.get(
     "/reviews", response={200: ReceivedReviewsResponseSchema, 400: ErrorResponseSchema}
 )

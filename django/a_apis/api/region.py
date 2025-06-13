@@ -35,11 +35,12 @@ def verify_location(request, data: LocationVerificationSchema):
     return result
 
 
-@router.get("/regions", response=RegionListResponseSchema)
+@router.get("", response=RegionListResponseSchema)
 def get_user_regions(request):
     """
     인증된 동네 목록 조회 API
 
+    URL: /api/regions
     인증 필수: Bearer 토큰 헤더 필요
 
     성공: 사용자의 인증된 동네 목록 반환
@@ -81,11 +82,12 @@ def get_location_info(request, data: LocationVerificationSchema):
         return {"success": False, "message": f"지역 정보 조회 실패: {str(e)}"}
 
 
-@router.delete("/regions/{region_id}", response=RegionResponseSchema)
+@router.delete("/{region_id}", response=RegionResponseSchema)
 def delete_region(request, region_id: int):
     """
     인증된 동네 삭제 API
 
+    URL: /api/regions/{region_id}
     인증 필수: Bearer 토큰 헤더 필요
     경로 파라미터: region_id (삭제할 동네 ID, 동네 목록 조회 API 응답의 id 값)
 
@@ -157,11 +159,12 @@ def get_nearby_regions(request, data: LocationVerificationSchema):
     )
 
 
-@router.put("/change-active-region/{region_id}", response=ActiveRegionResponseSchema)
+@router.put("/{region_id}", response=ActiveRegionResponseSchema)
 def change_active_region(request, region_id: int):
     """
     대표 동네 변경 API
 
+    URL: /api/regions/{region_id}
     인증된 동네 중에서 대표 동네를 변경
     지정한 동네가 현재 1순위가 아니라면 해당 동네의 우선순위를 1로 변경하고
     기존 1순위 동네의 우선순위를 변경된 동네의 우선순위로 설정

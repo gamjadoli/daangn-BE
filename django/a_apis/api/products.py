@@ -82,9 +82,9 @@ def get_products_by_keyword_in_region(
     request, keyword: str, radius: float = 3.0, limit: int = 30
 ):
     """
-    활동지역 범위 내 키워드 관련 상품 추천 API
+    대표동네 범위 내 키워드 관련 상품 추천 API
 
-    사용자의 활동지역을 중심으로 지정된 반경 내에서 키워드와 관련된 상품을 추천합니다.
+    사용자의 대표동네를 중심으로 지정된 반경 내에서 키워드와 관련된 상품을 추천합니다.
 
     Parameters:
         keyword: 검색할 키워드

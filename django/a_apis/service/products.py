@@ -29,6 +29,16 @@ class ProductService:
             return f"{distance_km:.1f}km"
 
     @staticmethod
+    def calculate_distance_km(point1, point2):
+        """두 지점 간의 거리를 km 단위로 계산하여 반환"""
+        if not point1 or not point2:
+            return float("inf")  # 거리 계산 불가 시 무한대 반환
+
+        # 두 점 간의 거리를 미터 단위로 계산 후 km로 변환
+        distance_meters = point1.distance(point2) * 111000  # 대략적인 변환 (도 -> 미터)
+        return distance_meters / 1000  # km 단위로 반환
+
+    @staticmethod
     def get_product_model():
         """Product 모델 반환 (테스트 모킹 용이성 위함)"""
         return Product
@@ -1846,7 +1856,7 @@ class ProductService:
         user_id: int, keyword: str, radius: float = 3.0, limit: int = 30
     ) -> dict:
         """
-        활동지역 범위 내에서 키워드와 관련된 상품 추천 서비스
+        대표동네 범위 내에서 키워드와 관련된 상품 추천 서비스
 
         Args:
             user_id: 요청한 사용자 ID
@@ -1863,7 +1873,7 @@ class ProductService:
             from django.contrib.gis.db.models.functions import Distance
             from django.contrib.gis.measure import D
 
-            # 사용자의 활동 지역 중 우선순위가 가장 높은 지역 찾기
+            # 사용자의 대표 동네 (우선순위 1) 찾기
             user_region = (
                 UserActivityRegion.objects.filter(user_id=user_id, priority=1)
                 .select_related("activity_area")
@@ -1873,31 +1883,65 @@ class ProductService:
             if not user_region or not user_region.activity_area.center_coordinates:
                 return {
                     "success": False,
-                    "message": "활동 지역이 설정되지 않았습니다.",
+                    "message": "대표 동네가 설정되지 않았습니다.",
                 }
 
-            # 사용자의 중심 위치
+            # 사용자의 대표 동네 중심 위치
             user_location = user_region.activity_area.center_coordinates
 
-            # 반경 내 상품 검색 및 키워드로 필터링
-            # DWithin에서는 도(degree) 단위를 사용해야 함
-            # 대략적으로 1도 = 111km 이므로 km를 도로 변환
-            radius_in_degrees = radius / 111.0
+            # 기본 쿼리셋 (자신의 상품 제외, 판매중인 상품만)
+            queryset = Product.objects.exclude(user_id=user_id).filter(status="selling")
 
-            queryset = (
-                Product.objects.exclude(user_id=user_id)
-                .filter(
-                    meeting_location__dwithin=(user_location, radius_in_degrees),
-                    status="selling",  # 판매중인 상품만
-                )
-                .annotate(distance=Distance("meeting_location", user_location))
-                .order_by("distance")
-            )
-
-            # 키워드 필터링
+            # 키워드 필터링 먼저 적용
             if keyword:
                 queryset = queryset.filter(
                     Q(title__icontains=keyword) | Q(description__icontains=keyword)
+                )
+
+            # 지역 필터링 (region이 있는 상품만)
+            queryset = queryset.filter(
+                region__isnull=False, region__center_coordinates__isnull=False
+            )
+
+            # 거리 기반 필터링 및 정렬 (대표동네 기준 3km 범위)
+            try:
+                # PostGIS 기능을 사용한 실제 거리 필터링
+                radius_in_degrees = radius / 111.0  # km를 도(degree) 단위로 변환
+
+                # 대표동네 중심에서 지정된 반경 내의 상품만 필터링
+                queryset = (
+                    queryset.filter(
+                        region__center_coordinates__dwithin=(
+                            user_location,
+                            radius_in_degrees,
+                        )
+                    )
+                    .annotate(
+                        distance=Distance("region__center_coordinates", user_location)
+                    )
+                    .order_by("distance", "-created_at")
+                )  # 거리순, 최신순으로 정렬
+
+            except Exception as gis_error:
+                # PostGIS 기능 실패 시 수동 거리 계산으로 대체
+                print(f"PostGIS 거리 필터링 실패, 수동 계산 사용: {gis_error}")
+
+                # 모든 상품을 가져와서 Python에서 거리 계산
+                all_products = queryset.select_related("region")
+                filtered_products = []
+
+                for product in all_products:
+                    if product.region and product.region.center_coordinates:
+                        # 거리 계산 (단위: km)
+                        distance_km = ProductService.calculate_distance_km(
+                            user_location, product.region.center_coordinates
+                        )
+                        if distance_km <= radius:
+                            filtered_products.append(product.id)
+
+                # 필터링된 상품 ID로 쿼리셋 다시 구성
+                queryset = queryset.filter(id__in=filtered_products).order_by(
+                    "-created_at"
                 )
 
             # 총 개수 파악
@@ -1946,10 +1990,12 @@ class ProductService:
                     if file_obj:
                         image_url = file_obj.url
 
-                # 거리 텍스트 계산
-                distance_text = ProductService.calculate_distance_text(
-                    user_location, product.meeting_location
-                )
+                # 거리 텍스트 계산 (상품의 동네 중심점과 사용자 대표동네 중심점 간 거리)
+                distance_text = None
+                if product.region and product.region.center_coordinates:
+                    distance_text = ProductService.calculate_distance_text(
+                        user_location, product.region.center_coordinates
+                    )
 
                 is_interested = False
                 if user_id:
@@ -1958,22 +2004,31 @@ class ProductService:
                         user_id=user_id, product_id=product.id
                     ).exists()
 
+                # 거래장소 정보 구조체로 구성 (meeting_location이 있는 경우)
+                meeting_location = None
+                if product.meeting_location:
+                    meeting_location = {
+                        "latitude": product.meeting_location.y,
+                        "longitude": product.meeting_location.x,
+                        "description": product.location_description,
+                        "distance_text": distance_text,
+                    }
+
                 product_data = {
                     "id": product.id,
                     "title": product.title,
+                    "description": product.description,
                     "price": product.price,
                     "trade_type": product.trade_type,
                     "status": product.status,
                     "image_url": image_url,
                     "region_name": product.region.name if product.region else None,
-                    "distance_text": distance_text,
+                    "meeting_location": meeting_location,
                     "interest_count": product.interest_count or 0,
                     "chat_count": product.chat_count or 0,
-                    "created_at": product.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    "created_at": product.created_at.isoformat(),
                     "refresh_at": (
-                        product.refresh_at.strftime("%Y-%m-%d %H:%M:%S")
-                        if product.refresh_at
-                        else None
+                        product.refresh_at.isoformat() if product.refresh_at else None
                     ),
                     "is_interested": is_interested,
                     "seller_nickname": product.user.nickname,
@@ -1982,14 +2037,12 @@ class ProductService:
 
             return {
                 "success": True,
-                "message": f"'{keyword}' 키워드 관련 근처 상품 {len(product_list)}개를 조회했습니다.",
-                "data": {
-                    "products": product_list,
-                    "total_count": total_count,
-                    "keyword": keyword,
-                    "radius": radius,
-                    "user_region": user_region.activity_area.name,
-                },
+                "message": f"'{keyword}' 키워드 관련 대표동네 근처 상품 {len(product_list)}개를 조회했습니다.",
+                "data": product_list,
+                "total_count": total_count,
+                "page": 1,
+                "page_size": limit,
+                "total_pages": 1,
             }
         except Exception as e:
             return {"success": False, "message": str(e)}

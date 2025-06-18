@@ -40,6 +40,8 @@ class RegionSchema(Schema):
     priority: int = Field(
         ..., description="동네 순서 (1: 대표 동네, 2: 두번째 동네, 3: 세번째 동네)"
     )
+    latitude: Optional[float] = Field(None, description="위도 좌표")
+    longitude: Optional[float] = Field(None, description="경도 좌표")
 
 
 class ActiveRegionResponseSchema(Schema):

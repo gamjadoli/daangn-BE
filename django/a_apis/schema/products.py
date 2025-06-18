@@ -224,6 +224,19 @@ class ProductSearchSchema(Schema):
     max_price: Optional[int] = Field(None, description="최대 가격")
 
 
+class PriceOfferCreateSchema(Schema):
+    """가격 제안 생성 스키마"""
+
+    price: int = Field(..., description="제안 가격")
+    chat_room_id: Optional[int] = Field(None, description="채팅방 ID (선택 사항)")
+
+    @validator("price")
+    def validate_price(cls, v):
+        if v <= 0:
+            raise ValueError("제안 가격은 0보다 커야 합니다.")
+        return v
+
+
 # 가격 제안 관련 스키마
 class PriceOfferSchema(Schema):
     """가격 제안 스키마"""
@@ -258,6 +271,14 @@ class PriceOfferResponseSchema(Schema):
     success: bool = Field(..., description="성공 여부")
     message: str = Field(..., description="응답 메시지")
     data: Optional[PriceOfferDetailSchema] = Field(None, description="가격 제안 정보")
+
+
+class PriceOfferListSchema(Schema):
+    """가격 제안 목록 응답 스키마"""
+
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: List[PriceOfferDetailSchema] = Field([], description="가격 제안 목록")
 
 
 class PriceOfferActionSchema(Schema):
@@ -321,6 +342,20 @@ class ReviewResponseSchema(Schema):
     success: bool = Field(..., description="성공 여부")
     message: str = Field(..., description="응답 메시지")
     data: Optional[ReviewDetailSchema] = Field(None, description="거래 후기 정보")
+
+
+class ReviewCreateSchema(Schema):
+    """거래 후기 작성 스키마"""
+
+    content: str = Field(..., description="후기 내용")
+
+    @validator("content")
+    def validate_content(cls, v):
+        if not v.strip():
+            raise ValueError("후기 내용을 입력해주세요.")
+        if len(v) > 500:
+            raise ValueError("후기 내용은 500자 이내로 입력해주세요.")
+        return v
 
 
 # 매너 평가 타입을 위한 Enum 클래스 추가

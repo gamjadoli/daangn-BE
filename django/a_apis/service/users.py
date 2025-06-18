@@ -167,11 +167,21 @@ class UserService:
             )
 
             for user_region in user_activity_regions:
+                # EupmyeondongRegion에서 위도/경도 정보 가져오기
+                eupmyeondong_region = user_region.activity_area
+                latitude = None
+                longitude = None
+                if eupmyeondong_region.center_coordinates:
+                    latitude = eupmyeondong_region.center_coordinates.y
+                    longitude = eupmyeondong_region.center_coordinates.x
+
                 region_data = {
                     "id": user_region.activity_area.id,
                     "name": user_region.activity_area.name,
                     "code": user_region.activity_area.code,
                     "priority": user_region.priority,
+                    "latitude": latitude,
+                    "longitude": longitude,
                 }
                 user_regions.append(region_data)
 
@@ -277,11 +287,21 @@ class UserService:
             )
 
             for user_region in user_activity_regions:
+                # EupmyeondongRegion에서 위도/경도 정보 가져오기
+                eupmyeondong_region = user_region.activity_area
+                latitude = None
+                longitude = None
+                if eupmyeondong_region.center_coordinates:
+                    latitude = eupmyeondong_region.center_coordinates.y
+                    longitude = eupmyeondong_region.center_coordinates.x
+
                 region_data = {
                     "id": user_region.activity_area.id,
                     "name": user_region.activity_area.name,
                     "code": user_region.activity_area.code,
                     "priority": user_region.priority,
+                    "latitude": latitude,
+                    "longitude": longitude,
                 }
                 user_regions.append(region_data)
 

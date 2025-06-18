@@ -2,26 +2,24 @@ from typing import List, Optional
 
 from a_apis.auth.bearer import AuthBearer
 from a_apis.models.product import Product
-from a_apis.schema.chat import (
-    MannerRatingCreateSchema,
+from a_apis.schema.products import (
+    CategoryListResponseSchema,
+    CategorySearchResponseSchema,
     MannerRatingResponseSchema,
+    MannerRatingSchema,
     PriceOfferActionSchema,
     PriceOfferCreateSchema,
     PriceOfferListSchema,
     PriceOfferResponseSchema,
-    ReviewCreateSchema,
-    ReviewResponseSchema,
-    TradeCompleteSchema,
-)
-from a_apis.schema.products import (
-    CategoryListResponseSchema,
-    CategorySearchResponseSchema,
     ProductCreateSchema,
     ProductInterestResponseSchema,
     ProductInterestSchema,
     ProductListResponseSchema,
     ProductResponseSchema,
     ProductStatusUpdateSchema,
+    ReviewCreateSchema,
+    ReviewResponseSchema,
+    TradeCompleteSchema,
 )
 from a_apis.service.products import ProductService
 from ninja import File, Query, Router
@@ -445,7 +443,7 @@ def create_review(request, product_id: int, data: ReviewCreateSchema):
 
 
 @router.post("/{product_id}/manner-rating", response=MannerRatingResponseSchema)
-def create_manner_rating(request, product_id: int, data: MannerRatingCreateSchema):
+def create_manner_rating(request, product_id: int, data: MannerRatingSchema):
     """
     매너 평가 등록 API
 

@@ -599,11 +599,21 @@ class RegionService:
 
             # 이미 활성 동네(우선순위 1)인 경우
             if user_region.priority == 1:
+                # EupmyeondongRegion에서 위도/경도 정보 가져오기
+                eupmyeondong_region = user_region.activity_area
+                latitude = None
+                longitude = None
+                if eupmyeondong_region.center_coordinates:
+                    latitude = eupmyeondong_region.center_coordinates.y
+                    longitude = eupmyeondong_region.center_coordinates.x
+
                 current_region = {
                     "id": user_region.activity_area.id,
                     "name": user_region.activity_area.name,
                     "code": user_region.activity_area.code,
                     "priority": user_region.priority,
+                    "latitude": latitude,
+                    "longitude": longitude,
                 }
                 return {
                     "success": True,
@@ -641,11 +651,21 @@ class RegionService:
                     )
 
             # 새로 설정된 활성 동네 정보만 반환
+            # EupmyeondongRegion에서 위도/경도 정보 가져오기
+            eupmyeondong_region = user_region.activity_area
+            latitude = None
+            longitude = None
+            if eupmyeondong_region.center_coordinates:
+                latitude = eupmyeondong_region.center_coordinates.y
+                longitude = eupmyeondong_region.center_coordinates.x
+
             current_region = {
                 "id": user_region.activity_area.id,
                 "name": user_region.activity_area.name,
                 "code": user_region.activity_area.code,
                 "priority": 1,  # 이제 우선순위가 1이 됨
+                "latitude": latitude,
+                "longitude": longitude,
             }
 
             return {

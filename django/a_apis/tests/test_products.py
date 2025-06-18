@@ -461,6 +461,102 @@ class ProductAPITestCase(TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["message"], "관심 상품에서 해제되었습니다.")
 
+    def test_toggle_interest_real_service(self):
+        """실제 ProductService를 사용한 관심 상품 등록/해제 테스트"""
+        # 다른 사용자의 상품 생성 (이미지 없이)
+        other_product = Product.objects.create(
+            user=self.other_user,
+            title="다른 유저의 테스트 상품",
+            trade_type="sale",
+            price=20000,
+            accept_price_offer=True,
+            description="다른 유저의 테스트 상품 설명입니다.",
+            meeting_location=Point(126.9780, 37.5665, srid=4326),
+            location_description="서울시청 앞",
+            status="selling",
+            view_count=0,
+        )
+
+        # 관심 상품 등록 테스트
+        try:
+            result = ProductService.toggle_interest_product(
+                product_id=other_product.id, user_id=self.user.id
+            )
+            print(f"관심 상품 등록 결과: {result}")
+            self.assertTrue(result["success"])
+            self.assertEqual(result["message"], "관심 상품으로 등록되었습니다.")
+
+            # DB에 실제로 등록되었는지 확인
+            interest_exists = InterestProduct.objects.filter(
+                product=other_product, user=self.user
+            ).exists()
+            self.assertTrue(interest_exists)
+
+        except Exception as e:
+            print(f"관심 상품 등록 중 오류 발생: {e}")
+            print(f"오류 타입: {type(e)}")
+            import traceback
+
+            traceback.print_exc()
+            raise
+
+        # 관심 상품 해제 테스트
+        try:
+            result = ProductService.toggle_interest_product(
+                product_id=other_product.id, user_id=self.user.id
+            )
+            print(f"관심 상품 해제 결과: {result}")
+            self.assertTrue(result["success"])
+            self.assertEqual(result["message"], "관심 상품에서 해제되었습니다.")
+
+            # DB에서 실제로 해제되었는지 확인
+            interest_exists = InterestProduct.objects.filter(
+                product=other_product, user=self.user
+            ).exists()
+            self.assertFalse(interest_exists)
+
+        except Exception as e:
+            print(f"관심 상품 해제 중 오류 발생: {e}")
+            print(f"오류 타입: {type(e)}")
+            import traceback
+
+            traceback.print_exc()
+            raise
+
+    def test_toggle_interest_own_product(self):
+        """자신의 상품에 관심 등록 시도 테스트"""
+        # 자신의 상품 생성 (이미지 없이)
+        my_product = Product.objects.create(
+            user=self.user,
+            title="내 테스트 상품",
+            trade_type="sale",
+            price=15000,
+            accept_price_offer=True,
+            description="내 테스트 상품 설명입니다.",
+            meeting_location=Point(126.9780, 37.5665, srid=4326),
+            location_description="서울시청 앞",
+            status="selling",
+            view_count=0,
+        )
+
+        try:
+            result = ProductService.toggle_interest_product(
+                product_id=my_product.id, user_id=self.user.id
+            )
+            print(f"자신의 상품 관심 등록 결과: {result}")
+            self.assertFalse(result["success"])
+            self.assertEqual(
+                result["message"], "자신의 상품은 관심 상품으로 등록할 수 없습니다."
+            )
+
+        except Exception as e:
+            print(f"자신의 상품 관심 등록 중 오류 발생: {e}")
+            print(f"오류 타입: {type(e)}")
+            import traceback
+
+            traceback.print_exc()
+            raise
+
     @patch("a_apis.service.products.ProductService.get_user_products")
     def test_get_my_products(self, mock_get_user_products):
         """내 판매 상품 목록 API 테스트"""
@@ -1890,10 +1986,7 @@ class CategorySuggestionTestCase(TestCase):
                         found_category = True
                         break
 
-                self.assertTrue(
-                    found_category,
-                    f"{case['description']}: 예상 카테고리 ID {case['expected_category_id']}가 결과에 없음",
-                )
+                self.assertTrue(found_category, case["message"])
 
             # 데이터 개수 검증 (expected_data_count가 있는 경우에만)
             if "expected_data_count" in case:

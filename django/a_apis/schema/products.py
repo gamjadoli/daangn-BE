@@ -372,14 +372,19 @@ class MannerRatingResponseSchema(Schema):
     data: Optional[MannerRatingDetailSchema] = Field(None, description="매너평가 정보")
 
 
-class ProductInterestSchema(Schema):
-    """상품 관심 등록/해제 요청 스키마"""
+class ProductInterestResponseSchema(Schema):
+    """상품 관심 등록/해제 응답 스키마"""
 
-    # 추가 필드가 필요하다면 여기에 정의할 수 있습니다.
-    # 현재는 빈 스키마로 정의하되, 추후 확장 가능성을 위해 클래스로 만듭니다.
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[dict] = Field(None, description="관심 상태 정보")
+
+
+class ProductInterestSchema(Schema):
+    """상품 관심 등록/해제 전용 요청 스키마"""
 
     class Config:
-        schema_extra = {"example": {}}  # 빈 예제로 시작
+        schema_extra = {"example": {}}
 
 
 class PriceOfferListRequestSchema(Schema):

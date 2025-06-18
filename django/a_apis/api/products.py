@@ -17,6 +17,7 @@ from a_apis.schema.products import (
     CategoryListResponseSchema,
     CategorySearchResponseSchema,
     ProductCreateSchema,
+    ProductInterestResponseSchema,
     ProductInterestSchema,
     ProductListResponseSchema,
     ProductResponseSchema,
@@ -309,7 +310,7 @@ def delete_product(request, product_id: int):
     return ProductService.delete_product(product_id=product_id, user_id=request.user.id)
 
 
-@router.post("/{product_id}/interest", response=ProductResponseSchema)
+@router.post("/{product_id}/interest", response=ProductInterestResponseSchema)
 def toggle_interest(request, product_id: int):
     """
     상품 관심 등록/해제 API

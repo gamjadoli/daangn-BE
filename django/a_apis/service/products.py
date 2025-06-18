@@ -521,7 +521,7 @@ class ProductService:
             if product.user_id == user_id:
                 return {
                     "success": False,
-                    "message": "자신의 상품은 관심등록할 수 없습니다.",
+                    "message": "자신의 상품은 관심 상품으로 등록할 수 없습니다.",
                 }
 
             # 관심상품 여부 확인 및 토글
@@ -536,14 +536,14 @@ class ProductService:
                 interest.delete()
                 return {
                     "success": True,
-                    "message": "관심상품이 해제되었습니다.",
+                    "message": "관심 상품에서 해제되었습니다.",
                     "data": {"is_interested": False},
                 }
             else:
                 # 새로 등록된 경우
                 return {
                     "success": True,
-                    "message": "관심상품으로 등록되었습니다.",
+                    "message": "관심 상품으로 등록되었습니다.",
                     "data": {"is_interested": True},
                 }
 

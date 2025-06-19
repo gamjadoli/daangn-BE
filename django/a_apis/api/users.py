@@ -254,3 +254,95 @@ def get_received_manner_ratings(
     if not result["success"]:
         return 400, result
     return 200, result
+
+
+@router.get(
+    "/{user_id}/profile",
+    response={200: UserProfileResponseSchema, 400: ErrorResponseSchema},
+)
+def get_user_profile(request, user_id: int):
+    """
+    특정 사용자 프로필 조회 API
+
+    **인증 필요**: Bearer 토큰으로 인증된 사용자만 다른 사용자의 프로필을 조회할 수 있습니다.
+
+    **응답 데이터**:
+    - 기본 사용자 정보 (이메일, 닉네임 등)
+    - 현재 판매 중인 상품 수
+    - 받은 매너 평가 통계 (긍정/부정 개수)
+    - 가장 많이 받은 매너 평가 상위 3개
+    - 받은 거래후기 총 개수
+    - 최근 거래후기 3개 (작성자 정보 포함)
+
+    성공: 사용자 프로필 정보 반환
+    실패: 오류 메시지
+    """
+    result = UserService.get_user_profile(user_id)
+
+    if not result["success"]:
+        return 400, result
+    return 200, result
+
+
+@router.get(
+    "/{user_id}/manner-ratings/detail",
+    response={200: MannerRatingsDetailResponseSchema, 400: ErrorResponseSchema},
+)
+def get_user_manner_ratings_detail(request, user_id: int):
+    """
+    특정 사용자가 받은 매너평가 상세 조회 API (긍정/부정 구분)
+
+    **인증 필요**: Bearer 토큰으로 인증된 사용자만 다른 사용자의 매너평가를 상세 조회할 수 있습니다.
+
+    **응답 데이터**:
+    - 긍정적 매너평가: 항목별 받은 횟수와 총 개수
+    - 부정적 매너평가: 항목별 받은 횟수와 총 개수
+
+    **매너평가 항목**:
+    긍정적: 시간 약속을 잘 지켜요, 응답이 빨라요, 친절하고 매너가 좋아요, 상품 상태가 설명과 일치해요, 가격 제안에 대해 긍정적이에요
+    부정적: 약속시간을 안 지켜요, 응답이 느려요, 불친절해요, 상품 상태가 설명과 달라요, 가격 흥정이 너무 심해요
+
+    성공: 매너평가 상세 정보 반환
+    실패: 오류 메시지
+    """
+    result = UserService.get_user_manner_ratings_detail(user_id)
+
+    if not result["success"]:
+        return 400, result
+    return 200, result
+
+
+@router.get(
+    "/{user_id}/reviews/detail",
+    response={200: ReviewsDetailResponseSchema, 400: ErrorResponseSchema},
+)
+def get_user_reviews_detail(request, user_id: int, page: int = 1, page_size: int = 10):
+    """
+    특정 사용자가 받은 거래후기 상세 조회 API (페이지네이션 포함)
+
+    **인증 필요**: Bearer 토큰으로 인증된 사용자만 다른 사용자의 거래후기를 상세 조회할 수 있습니다.
+
+    **쿼리 파라미터**:
+    - page: 페이지 번호 (기본값: 1)
+    - page_size: 페이지 크기 (기본값: 10, 최대: 50)
+
+    **응답 데이터**:
+    - 받은 거래후기 목록 (최신순)
+    - 후기 작성자 정보 (닉네임, 역할, 동네)
+    - 거래 상품명, 거래 날짜, 후기 내용
+    - 페이지네이션 정보 (총 개수, 현재 페이지, 총 페이지 수)
+
+    성공: 거래후기 상세 정보 반환
+    실패: 오류 메시지
+    """
+    # 페이지 크기 제한
+    if page_size > 50:
+        page_size = 50
+    if page_size < 1:
+        page_size = 10
+
+    result = UserService.get_user_reviews_detail(user_id, page, page_size)
+
+    if not result["success"]:
+        return 400, result
+    return 200, result

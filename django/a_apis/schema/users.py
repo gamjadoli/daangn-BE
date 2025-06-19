@@ -210,3 +210,126 @@ class ReceivedMannerRatingsResponseSchema(Schema):
     page: Optional[int] = Field(None, description="현재 페이지")
     page_size: Optional[int] = Field(None, description="페이지 크기")
     total_pages: Optional[int] = Field(None, description="총 페이지 수")
+
+
+# 유저 프로필 조회 관련 스키마 추가
+class TopMannerRatingSchema(Schema):
+    """상위 매너 평가 스키마"""
+
+    rating_type: str = Field(..., description="평가 유형")
+    rating_name: str = Field(..., description="평가명")
+    count: int = Field(..., description="받은 횟수")
+
+
+class RecentReviewSchema(Schema):
+    """최근 거래후기 스키마"""
+
+    reviewer_nickname: str = Field(..., description="후기 작성자 닉네임")
+    reviewer_profile_img_url: Optional[str] = Field(
+        None, description="작성자 프로필 이미지 URL"
+    )
+    reviewer_role: str = Field(..., description="작성자 역할 (buyer/seller)")
+    reviewer_region: Optional[str] = Field(None, description="작성자 대표 동네")
+    content: str = Field(..., description="후기 내용")
+    created_at: str = Field(..., description="후기 작성일")
+
+
+class UserProfileSchema(Schema):
+    """유저 프로필 스키마"""
+
+    id: int = Field(..., description="사용자 ID")
+    created_at: str = Field(..., description="계정 생성일")
+    email: EmailStr = Field(..., description="사용자 이메일")
+    nickname: str = Field(..., description="닉네임")
+    phone_number: str = Field(..., description="휴대폰 번호")
+    is_activated: bool = Field(..., description="계정 활성화 상태")
+    is_email_verified: bool = Field(..., description="이메일 인증 완료 여부")
+    rating_score: float = Field(..., description="매너온도")
+    profile_img_url: Optional[str] = Field(None, description="프로필 이미지 URL")
+    selling_products_count: int = Field(..., description="현재 판매 중인 상품 수")
+    top_manner_ratings: List[TopMannerRatingSchema] = Field(
+        ..., description="가장 많이 받은 매너 평가 상위 3개"
+    )
+    total_review_count: int = Field(..., description="받은 거래후기 총 개수")
+    recent_reviews: List[RecentReviewSchema] = Field(
+        ..., description="최근 거래후기 3개"
+    )
+
+
+class UserProfileResponseSchema(Schema):
+    """유저 프로필 조회 응답 스키마"""
+
+    success: bool = Field(..., description="요청 성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    user: Optional[UserProfileSchema] = Field(None, description="유저 프로필 정보")
+
+
+# 매너평가 상세 조회 관련 스키마
+class DetailedMannerRatingSchema(Schema):
+    """상세 매너 평가 스키마"""
+
+    rating_type: str = Field(..., description="평가 유형")
+    rating_name: str = Field(..., description="평가명")
+    count: int = Field(..., description="받은 횟수")
+
+
+class PositiveMannerRatingsSchema(Schema):
+    """긍정적 매너평가 응답 스키마"""
+
+    total_count: int = Field(..., description="긍정적 평가 총 개수")
+    ratings: List[DetailedMannerRatingSchema] = Field(
+        ..., description="긍정적 매너평가 목록"
+    )
+
+
+class NegativeMannerRatingsSchema(Schema):
+    """부정적 매너평가 응답 스키마"""
+
+    total_count: int = Field(..., description="부정적 평가 총 개수")
+    ratings: List[DetailedMannerRatingSchema] = Field(
+        ..., description="부정적 매너평가 목록"
+    )
+
+
+class MannerRatingsDetailResponseSchema(Schema):
+    """매너평가 상세 조회 응답 스키마"""
+
+    success: bool = Field(..., description="요청 성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    positive_ratings: Optional[PositiveMannerRatingsSchema] = Field(
+        None, description="긍정적 매너평가"
+    )
+    negative_ratings: Optional[NegativeMannerRatingsSchema] = Field(
+        None, description="부정적 매너평가"
+    )
+
+
+# 거래후기 상세 조회 관련 스키마
+class DetailedReviewSchema(Schema):
+    """상세 거래후기 스키마"""
+
+    id: int = Field(..., description="후기 ID")
+    reviewer_nickname: str = Field(..., description="후기 작성자 닉네임")
+    reviewer_profile_img_url: Optional[str] = Field(
+        None, description="작성자 프로필 이미지 URL"
+    )
+    reviewer_role: str = Field(..., description="작성자 역할 (buyer/seller)")
+    reviewer_region: Optional[str] = Field(None, description="작성자 대표 동네")
+    product_title: str = Field(..., description="거래 상품명")
+    trade_date: str = Field(..., description="거래 날짜")
+    content: str = Field(..., description="후기 내용")
+    created_at: str = Field(..., description="후기 작성일")
+
+
+class ReviewsDetailResponseSchema(Schema):
+    """거래후기 상세 조회 응답 스키마"""
+
+    success: bool = Field(..., description="요청 성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    total_count: Optional[int] = Field(None, description="총 후기 개수")
+    reviews: Optional[List[DetailedReviewSchema]] = Field(
+        None, description="거래후기 목록"
+    )
+    page: Optional[int] = Field(None, description="현재 페이지")
+    page_size: Optional[int] = Field(None, description="페이지 크기")
+    total_pages: Optional[int] = Field(None, description="총 페이지 수")

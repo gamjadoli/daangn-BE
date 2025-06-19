@@ -752,3 +752,345 @@ class UserService:
                 "success": False,
                 "message": f"동네 변경 중 오류가 발생했습니다: {str(e)}",
             }
+
+    @staticmethod
+    def get_user_profile(user_id: int) -> dict:
+        """특정 유저의 프로필 정보를 조회합니다"""
+        try:
+            from a_apis.models.product import Product
+            from a_apis.models.region import UserActivityRegion
+            from a_user.models import MannerRating, Review  # 올바른 모델 import
+
+            from django.db.models import Count, Q
+
+            # 사용자 조회
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+
+            # 1. 현재 판매 중인 상품 수
+            selling_products_count = Product.objects.filter(
+                user=user, status="selling"
+            ).count()
+
+            # 2. 가장 많이 받은 매너 평가 상위 3개 (rating_type별로 집계)
+            manner_ratings = MannerRating.objects.filter(rated_user=user)
+
+            manner_rating_names = {
+                "time": "시간 약속을 잘 지켜요",
+                "response": "응답이 빨라요",
+                "kind": "친절하고 매너가 좋아요",
+                "accurate": "상품 상태가 설명과 일치해요",
+                "negotiable": "가격 제안에 대해 긍정적이에요",
+                "bad_time": "약속시간을 안 지켜요",
+                "bad_response": "응답이 느려요",
+                "bad_manner": "불친절해요",
+                "bad_accuracy": "상품 상태가 설명과 달라요",
+                "bad_price": "가격 흥정이 너무 심해요",
+            }
+
+            # rating_type별로 집계
+            top_manner_ratings_queryset = (
+                manner_ratings.values("rating_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:3]
+            )
+
+            formatted_top_ratings = []
+            for rating in top_manner_ratings_queryset:
+                rating_type = rating["rating_type"]
+                formatted_top_ratings.append(
+                    {
+                        "rating_type": rating_type,
+                        "rating_name": manner_rating_names.get(
+                            rating_type, rating_type
+                        ),
+                        "count": rating["count"],
+                    }
+                )
+
+            # 3. 받은 거래후기 총 개수
+            total_review_count = Review.objects.filter(receiver=user).count()
+
+            # 4. 최근 거래후기 3개 (작성자 정보 포함)
+            recent_reviews_queryset = (
+                Review.objects.filter(receiver=user)
+                .select_related("reviewer", "product")
+                .order_by("-created_at")[:3]
+            )
+
+            recent_reviews = []
+            for review in recent_reviews_queryset:
+                # 작성자가 구매자인지 판매자인지 확인
+                product = review.product
+                reviewer_role = (
+                    "buyer" if product.user == user else "seller"
+                )  # receiver가 판매자면 reviewer는 구매자
+
+                # 작성자의 대표 동네 조회
+                writer_region = (
+                    UserActivityRegion.objects.filter(user=review.reviewer, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+                reviewer_region = (
+                    writer_region.activity_area.name if writer_region else None
+                )
+
+                # 작성자 프로필 이미지 URL 처리
+                reviewer_profile_img_url = None
+                if review.reviewer.profile_img:
+                    reviewer_profile_img_url = (
+                        review.reviewer.profile_img.file.url
+                        if review.reviewer.profile_img.file
+                        else None
+                    )
+
+                recent_reviews.append(
+                    {
+                        "reviewer_nickname": review.reviewer.nickname,
+                        "reviewer_profile_img_url": reviewer_profile_img_url,
+                        "reviewer_role": reviewer_role,
+                        "reviewer_region": reviewer_region,
+                        "content": review.content,
+                        "created_at": review.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                )
+
+            # 프로필 이미지 URL 처리
+            profile_img_url = None
+            if user.profile_img:
+                profile_img_url = (
+                    user.profile_img.file.url if user.profile_img.file else None
+                )
+
+            # 응답 데이터 구성
+            user_profile = {
+                "id": user.id,
+                "created_at": user.date_joined.strftime("%Y-%m-%d"),
+                "email": user.email,
+                "nickname": user.nickname,
+                "phone_number": user.phone_number,
+                "is_activated": user.is_activated,
+                "is_email_verified": user.is_email_verified,
+                "rating_score": float(user.rating_score),
+                "profile_img_url": profile_img_url,
+                "selling_products_count": selling_products_count,
+                "top_manner_ratings": formatted_top_ratings,
+                "total_review_count": total_review_count,
+                "recent_reviews": recent_reviews,
+            }
+
+            return {
+                "success": True,
+                "message": "사용자 프로필을 성공적으로 조회했습니다.",
+                "user": user_profile,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"프로필 조회 중 오류가 발생했습니다: {str(e)}",
+            }
+
+    @staticmethod
+    def get_user_manner_ratings_detail(user_id: int) -> dict:
+        """특정 유저가 받은 매너평가를 긍정/부정으로 구분하여 상세 조회합니다"""
+        try:
+            from a_user.models import MannerRating
+
+            from django.db.models import Count
+
+            # 사용자 조회
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+
+            # 매너평가 이름 매핑
+            manner_rating_names = {
+                "time": "시간 약속을 잘 지켜요",
+                "response": "응답이 빨라요",
+                "kind": "친절하고 매너가 좋아요",
+                "accurate": "상품 상태가 설명과 일치해요",
+                "negotiable": "가격 제안에 대해 긍정적이에요",
+                "bad_time": "약속시간을 안 지켜요",
+                "bad_response": "응답이 느려요",
+                "bad_manner": "불친절해요",
+                "bad_accuracy": "상품 상태가 설명과 달라요",
+                "bad_price": "가격 흥정이 너무 심해요",
+            }
+
+            # 긍정적 평가 항목
+            positive_types = ["time", "response", "kind", "accurate", "negotiable"]
+            # 부정적 평가 항목
+            negative_types = [
+                "bad_time",
+                "bad_response",
+                "bad_manner",
+                "bad_accuracy",
+                "bad_price",
+            ]
+
+            # 긍정적 매너평가 집계
+            positive_ratings_queryset = (
+                MannerRating.objects.filter(
+                    rated_user=user, rating_type__in=positive_types
+                )
+                .values("rating_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+            )
+
+            positive_ratings = []
+            positive_total = 0
+            for rating in positive_ratings_queryset:
+                rating_type = rating["rating_type"]
+                count = rating["count"]
+                positive_total += count
+                positive_ratings.append(
+                    {
+                        "rating_type": rating_type,
+                        "rating_name": manner_rating_names.get(
+                            rating_type, rating_type
+                        ),
+                        "count": count,
+                    }
+                )
+
+            # 부정적 매너평가 집계
+            negative_ratings_queryset = (
+                MannerRating.objects.filter(
+                    rated_user=user, rating_type__in=negative_types
+                )
+                .values("rating_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+            )
+
+            negative_ratings = []
+            negative_total = 0
+            for rating in negative_ratings_queryset:
+                rating_type = rating["rating_type"]
+                count = rating["count"]
+                negative_total += count
+                negative_ratings.append(
+                    {
+                        "rating_type": rating_type,
+                        "rating_name": manner_rating_names.get(
+                            rating_type, rating_type
+                        ),
+                        "count": count,
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "매너평가 상세 조회를 성공했습니다.",
+                "positive_ratings": {
+                    "total_count": positive_total,
+                    "ratings": positive_ratings,
+                },
+                "negative_ratings": {
+                    "total_count": negative_total,
+                    "ratings": negative_ratings,
+                },
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"매너평가 상세 조회 중 오류가 발생했습니다: {str(e)}",
+            }
+
+    @staticmethod
+    def get_user_reviews_detail(
+        user_id: int, page: int = 1, page_size: int = 10
+    ) -> dict:
+        """특정 유저가 받은 거래후기를 상세 조회합니다 (페이지네이션 포함)"""
+        try:
+            from a_apis.models.region import UserActivityRegion
+            from a_user.models import Review
+
+            from django.core.paginator import Paginator
+
+            # 사용자 조회
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return {"success": False, "message": "사용자를 찾을 수 없습니다."}
+
+            # 받은 거래후기 조회 (최신순)
+            reviews_queryset = (
+                Review.objects.filter(receiver=user)
+                .select_related("reviewer", "product")
+                .order_by("-created_at")
+            )
+
+            # 페이지네이션 적용
+            paginator = Paginator(reviews_queryset, page_size)
+            total_pages = paginator.num_pages
+            total_count = paginator.count
+
+            try:
+                reviews_page = paginator.page(page)
+            except Exception:
+                return {"success": False, "message": "잘못된 페이지 번호입니다."}
+
+            # 리뷰 데이터 포맷팅
+            reviews = []
+            for review in reviews_page:
+                # 작성자가 구매자인지 판매자인지 확인
+                product = review.product
+                reviewer_role = (
+                    "buyer" if product.user == user else "seller"
+                )  # receiver가 판매자면 reviewer는 구매자
+
+                # 작성자의 대표 동네 조회
+                writer_region = (
+                    UserActivityRegion.objects.filter(user=review.reviewer, priority=1)
+                    .select_related("activity_area")
+                    .first()
+                )
+                reviewer_region = (
+                    writer_region.activity_area.name if writer_region else None
+                )
+
+                # 작성자 프로필 이미지 URL 처리
+                reviewer_profile_img_url = None
+                if review.reviewer.profile_img:
+                    reviewer_profile_img_url = (
+                        review.reviewer.profile_img.file.url
+                        if review.reviewer.profile_img.file
+                        else None
+                    )
+
+                reviews.append(
+                    {
+                        "id": review.id,
+                        "reviewer_nickname": review.reviewer.nickname,
+                        "reviewer_profile_img_url": reviewer_profile_img_url,
+                        "reviewer_role": reviewer_role,
+                        "reviewer_region": reviewer_region,
+                        "product_title": product.title,
+                        "trade_date": review.created_at.strftime("%Y-%m-%d"),
+                        "content": review.content,
+                        "created_at": review.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                )
+
+            return {
+                "success": True,
+                "message": "거래후기 상세 조회를 성공했습니다.",
+                "total_count": total_count,
+                "reviews": reviews,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"거래후기 상세 조회 중 오류가 발생했습니다: {str(e)}",
+            }

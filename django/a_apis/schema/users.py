@@ -151,67 +151,6 @@ class PasswordChangeSchema(Schema):
     new_password: str = Field(..., description="새 비밀번호")
 
 
-# 거래 후기 관련 스키마 추가
-class ReviewerSchema(Schema):
-    """후기 작성자 정보 스키마"""
-
-    id: int = Field(..., description="작성자 ID")
-    nickname: str = Field(..., description="닉네임")
-    profile_img_url: Optional[str] = Field(None, description="프로필 이미지 URL")
-    location: Optional[str] = Field(None, description="인증한 동네")
-
-
-class ReceivedReviewSchema(Schema):
-    """받은 거래 후기 스키마"""
-
-    id: int = Field(..., description="후기 ID")
-    product_id: int = Field(..., description="상품 ID")
-    product_title: str = Field(..., description="상품 제목")
-    content: str = Field(..., description="후기 내용")
-    created_at: str = Field(..., description="작성 일시")
-    reviewer: ReviewerSchema = Field(..., description="작성자 정보")
-
-
-class ReceivedReviewsResponseSchema(Schema):
-    """받은 거래 후기 응답 스키마"""
-
-    success: bool = Field(..., description="요청 성공 여부")
-    message: str = Field(..., description="응답 메시지")
-    data: Optional[List[ReceivedReviewSchema]] = Field(
-        None, description="받은 후기 목록"
-    )
-    total_count: Optional[int] = Field(None, description="총 후기 수")
-    page: Optional[int] = Field(None, description="현재 페이지")
-    page_size: Optional[int] = Field(None, description="페이지 크기")
-    total_pages: Optional[int] = Field(None, description="총 페이지 수")
-
-
-class ReceivedMannerRatingSchema(Schema):
-    """받은 매너 평가 스키마"""
-
-    id: int = Field(..., description="평가 ID")
-    product_id: int = Field(..., description="상품 ID")
-    product_title: str = Field(..., description="상품 제목")
-    rating_type: str = Field(..., description="평가 유형")
-    rating_display: str = Field(..., description="평가 표시명")
-    created_at: str = Field(..., description="작성 일시")
-    rater: ReviewerSchema = Field(..., description="평가자 정보")
-
-
-class ReceivedMannerRatingsResponseSchema(Schema):
-    """받은 매너 평가 응답 스키마"""
-
-    success: bool = Field(..., description="요청 성공 여부")
-    message: str = Field(..., description="응답 메시지")
-    data: Optional[List[ReceivedMannerRatingSchema]] = Field(
-        None, description="받은 매너 평가 목록"
-    )
-    total_count: Optional[int] = Field(None, description="총 매너 평가 수")
-    page: Optional[int] = Field(None, description="현재 페이지")
-    page_size: Optional[int] = Field(None, description="페이지 크기")
-    total_pages: Optional[int] = Field(None, description="총 페이지 수")
-
-
 # 유저 프로필 조회 관련 스키마 추가
 class TopMannerRatingSchema(Schema):
     """상위 매너 평가 스키마"""

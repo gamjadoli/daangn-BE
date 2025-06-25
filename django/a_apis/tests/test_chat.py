@@ -176,12 +176,16 @@ class ChatAPITestCase(TestCase):
         seller_data = data["seller"]
         self.assertEqual(seller_data["id"], self.seller.id)
         self.assertEqual(seller_data["nickname"], self.seller.nickname)
+        self.assertIn("rating_score", seller_data)
+        self.assertEqual(seller_data["rating_score"], float(self.seller.rating_score))
 
         # 구매자 정보 검증
         self.assertIn("buyer", data)
         buyer_data = data["buyer"]
         self.assertEqual(buyer_data["id"], self.buyer.id)
         self.assertEqual(buyer_data["nickname"], self.buyer.nickname)
+        self.assertIn("rating_score", buyer_data)
+        self.assertEqual(buyer_data["rating_score"], float(self.buyer.rating_score))
 
     def test_send_and_receive_message(self):
         """메시지 전송 및 조회 테스트"""

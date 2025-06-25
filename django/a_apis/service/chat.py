@@ -264,12 +264,14 @@ class ChatService:
                         "id": seller.id,
                         "nickname": seller.nickname,
                         "profile_image_url": seller_profile_image_url,
+                        "rating_score": float(seller.rating_score),
                     },
                     "buyer": (
                         {
                             "id": buyer.id,
                             "nickname": buyer.nickname,
                             "profile_image_url": buyer_profile_image_url,
+                            "rating_score": float(buyer.rating_score),
                         }
                         if buyer
                         else None

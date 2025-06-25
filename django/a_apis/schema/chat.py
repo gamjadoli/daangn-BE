@@ -50,6 +50,7 @@ class ChatRoomUserSchema(Schema):
     id: int = Field(..., description="사용자 ID")
     nickname: str = Field(..., description="사용자 닉네임")
     profile_image_url: Optional[str] = Field(None, description="프로필 이미지 URL")
+    rating_score: float = Field(..., description="매너온도 점수")
 
 
 class ChatRoomDetailSchema(Schema):

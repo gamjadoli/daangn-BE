@@ -236,19 +236,44 @@ class ChatService:
             if product_image and product_image.file:
                 product_image_url = product_image.file.url
 
+            # 판매자 프로필 이미지 조회
+            seller_profile_image_url = None
+            if hasattr(seller, "profile_image") and seller.profile_image:
+                seller_profile_image_url = seller.profile_image.url
+
+            # 구매자 프로필 이미지 조회
+            buyer_profile_image_url = None
+            if buyer and hasattr(buyer, "profile_image") and buyer.profile_image:
+                buyer_profile_image_url = buyer.profile_image.url
+
             return {
                 "success": True,
                 "message": "채팅방 정보를 조회했습니다.",
                 "data": {
                     "id": chat_room.id,
-                    "product_id": chat_room.product.id,
-                    "product_title": chat_room.product.title,
-                    "product_image_url": product_image_url,
-                    "seller_id": seller.id,
-                    "seller_nickname": seller.nickname,
-                    "buyer_id": buyer.id if buyer else None,
-                    "buyer_nickname": buyer.nickname if buyer else None,
                     "created_at": chat_room.created_at,
+                    "product": {
+                        "id": chat_room.product.id,
+                        "title": chat_room.product.title,
+                        "image_url": product_image_url,
+                        "price": chat_room.product.price,
+                        "status": chat_room.product.status,
+                        "price_offer": chat_room.product.accept_price_offer,
+                    },
+                    "seller": {
+                        "id": seller.id,
+                        "nickname": seller.nickname,
+                        "profile_image_url": seller_profile_image_url,
+                    },
+                    "buyer": (
+                        {
+                            "id": buyer.id,
+                            "nickname": buyer.nickname,
+                            "profile_image_url": buyer_profile_image_url,
+                        }
+                        if buyer
+                        else None
+                    ),
                 },
             }
 

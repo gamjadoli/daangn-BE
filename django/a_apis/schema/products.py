@@ -105,6 +105,18 @@ class ProductCreateSchema(Schema):
             raise ValueError("상품 설명을 입력해주세요.")
         return v.strip()
 
+    @validator("category_id")
+    def validate_category_id(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError("올바른 카테고리를 선택해주세요.")
+        return v
+
+    @validator("region_id")
+    def validate_region_id(cls, v):
+        if v <= 0:
+            raise ValueError("올바른 동네를 선택해주세요.")
+        return v
+
 
 class ProductImageSchema(Schema):
     """상품 이미지 스키마"""

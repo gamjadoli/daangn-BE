@@ -33,18 +33,33 @@ class ChatRoomSchema(Schema):
     unread_count: int = Field(0, description="읽지 않은 메시지 수")
 
 
+class ChatRoomProductSchema(Schema):
+    """채팅방 상품 정보 스키마"""
+
+    id: int = Field(..., description="상품 ID")
+    title: str = Field(..., description="상품 제목")
+    image_url: Optional[str] = Field(None, description="상품 이미지 URL")
+    price: int = Field(..., description="상품 가격")
+    status: str = Field(..., description="상품 상태")
+    price_offer: bool = Field(..., description="가격 제안 허용 여부")
+
+
+class ChatRoomUserSchema(Schema):
+    """채팅방 사용자 정보 스키마"""
+
+    id: int = Field(..., description="사용자 ID")
+    nickname: str = Field(..., description="사용자 닉네임")
+    profile_image_url: Optional[str] = Field(None, description="프로필 이미지 URL")
+
+
 class ChatRoomDetailSchema(Schema):
     """채팅방 상세 정보 스키마"""
 
     id: int = Field(..., description="채팅방 ID")
-    product_id: int = Field(..., description="상품 ID")
-    product_title: str = Field(..., description="상품 제목")
-    product_image_url: Optional[str] = Field(None, description="상품 이미지 URL")
-    seller_id: int = Field(..., description="판매자 ID")
-    seller_nickname: str = Field(..., description="판매자 닉네임")
-    buyer_id: Optional[int] = Field(None, description="구매자 ID")
-    buyer_nickname: Optional[str] = Field(None, description="구매자 닉네임")
     created_at: datetime = Field(..., description="채팅방 생성 시간")
+    product: ChatRoomProductSchema = Field(..., description="상품 정보")
+    seller: ChatRoomUserSchema = Field(..., description="판매자 정보")
+    buyer: Optional[ChatRoomUserSchema] = Field(None, description="구매자 정보")
 
 
 class CreateChatRoomResponseSchema(Schema):

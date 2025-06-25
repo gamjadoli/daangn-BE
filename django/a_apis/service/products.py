@@ -62,6 +62,16 @@ class ProductService:
                     "message": "인증된 동네가 아닙니다. 동네 인증 후 다시 시도해주세요.",
                 }
 
+            # 카테고리 유효성 검증
+            if data.category_id is not None:
+                try:
+                    ProductCategory.objects.get(id=data.category_id)
+                except ProductCategory.DoesNotExist:
+                    return {
+                        "success": False,
+                        "message": "존재하지 않는 카테고리입니다.",
+                    }
+
             # 거래 위치 생성 (선택사항)
             meeting_point = None
             location_description = None
@@ -101,7 +111,10 @@ class ProductService:
                 "data": ProductService._product_to_detail(product, user_id),
             }
         except Exception as e:
-            return {"success": False, "message": str(e)}
+            return {
+                "success": False,
+                "message": f"상품 등록 중 오류가 발생했습니다: {str(e)}",
+            }
 
     @staticmethod
     def get_products(user_id=None, filter_params=None) -> dict:

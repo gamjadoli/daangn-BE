@@ -70,7 +70,7 @@ class ChatAPITestCase(TestCase):
         )
 
         # 채팅방 생성 API 호출 - product_id를 URL 쿼리 파라미터로 전달
-        response = self.client.post(f"/api/chats/create?product_id={self.product.id}")
+        response = self.client.post(f"/api/chats?product_id={self.product.id}")
 
         # 응답 검증
         self.assertEqual(response.status_code, 200)
@@ -158,15 +158,30 @@ class ChatAPITestCase(TestCase):
         self.assertTrue(response_data["success"])
         self.assertIn("data", response_data)
 
-        # 채팅방 상세 정보 검증
+        # 채팅방 상세 정보 검증 - 새로운 nested 구조
         data = response_data["data"]
         self.assertEqual(data["id"], chat_room.id)
-        self.assertEqual(data["product_id"], self.product.id)
-        self.assertEqual(data["product_title"], self.product.title)
-        self.assertEqual(data["seller_id"], self.seller.id)
-        self.assertEqual(data["seller_nickname"], self.seller.nickname)
-        self.assertEqual(data["buyer_id"], self.buyer.id)
-        self.assertEqual(data["buyer_nickname"], self.buyer.nickname)
+
+        # 상품 정보 검증
+        self.assertIn("product", data)
+        product_data = data["product"]
+        self.assertEqual(product_data["id"], self.product.id)
+        self.assertEqual(product_data["title"], self.product.title)
+        self.assertEqual(product_data["price"], self.product.price)
+        self.assertEqual(product_data["status"], self.product.status)
+        self.assertEqual(product_data["price_offer"], self.product.accept_price_offer)
+
+        # 판매자 정보 검증
+        self.assertIn("seller", data)
+        seller_data = data["seller"]
+        self.assertEqual(seller_data["id"], self.seller.id)
+        self.assertEqual(seller_data["nickname"], self.seller.nickname)
+
+        # 구매자 정보 검증
+        self.assertIn("buyer", data)
+        buyer_data = data["buyer"]
+        self.assertEqual(buyer_data["id"], self.buyer.id)
+        self.assertEqual(buyer_data["nickname"], self.buyer.nickname)
 
     def test_send_and_receive_message(self):
         """메시지 전송 및 조회 테스트"""
@@ -239,7 +254,7 @@ class ChatAPITestCase(TestCase):
         )
 
         # 채팅방 생성 API 호출 - product_id를 URL 쿼리 파라미터로 전달
-        response = self.client.post(f"/api/chats/create?product_id={self.product.id}")
+        response = self.client.post(f"/api/chats?product_id={self.product.id}")
 
         # 응답 검증 - 실패해야 함
         self.assertEqual(

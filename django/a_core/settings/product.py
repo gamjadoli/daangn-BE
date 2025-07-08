@@ -9,7 +9,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "13.125.219.86",  # Django 백엔드 EC2 IP
-    "13.125.165.24",  # 프론트엔드 서버 IP
+    "43.200.141.215",  # 프론트엔드 서버 IP
 ]
 
 # Redis 설정 업데이트 - 명시적으로 'redis' 설정
@@ -56,8 +56,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://localhost:3000",
     "https://localhost:5173",
     "https://localhost:8000",
-    "http://13.125.165.24",  # 프론트엔드 서버 HTTP
-    "https://13.125.165.24",  # 프론트엔드 서버 HTTPS
+    "http://43.200.141.215",  # 프론트엔드 서버 HTTP
+    "https://43.200.141.215",  # 프론트엔드 서버 HTTPS
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://dangma.store",
@@ -70,8 +70,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://localhost:5173",  # Vite dev server (HTTPS)
     "https://localhost:3000",  # React / Next.js dev server (HTTPS)
     "https://localhost:8000",  # Django dev server (HTTPS)
-    "http://13.125.165.24",  # 프론트엔드 서버 HTTP
-    "https://13.125.165.24",  # 프론트엔드 서버 HTTPS
+    "http://43.200.141.215",  # 프론트엔드 서버 HTTP
+    "https://43.200.141.215",  # 프론트엔드 서버 HTTPS
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False

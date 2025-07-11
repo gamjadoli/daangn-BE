@@ -130,14 +130,10 @@ services:
     container_name: certbot
     restart: unless-stopped
     volumes:
+      - ./certbot-renew.sh:/certbot-renew.sh:ro
       - /etc/letsencrypt:/etc/letsencrypt
       - /var/www/certbot:/var/www/certbot
-    entrypoint: sh
-    command: -c "trap exit TERM; \
-      while :; do \
-        certbot renew --webroot -w /var/www/certbot --quiet --deploy-hook 'docker exec nginx nginx -s reload || true'; \
-        sleep 12h & wait \$${!}; \
-      done"
+    entrypoint: /certbot-renew.sh
     depends_on:
       - nginx
     networks:

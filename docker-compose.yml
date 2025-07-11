@@ -135,7 +135,7 @@ services:
     entrypoint: sh
     command: -c "trap exit TERM; \
       while :; do \
-        certbot renew --webroot -w /var/www/certbot --quiet --deploy-hook 'nginx -s reload || docker exec $(docker ps -qf name=nginx) nginx -s reload || true'; \
+        certbot renew --webroot -w /var/www/certbot --quiet --deploy-hook 'docker exec nginx nginx -s reload || true'; \
         sleep 12h & wait \$${!}; \
       done"
     depends_on:

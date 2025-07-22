@@ -18,10 +18,9 @@ from django.core.asgi import get_asgi_application
 # HTTP 요청을 처리하기 위한 ASGI 애플리케이션 가져오기
 django_asgi_app = get_asgi_application()
 
-from a_apis.routing import websocket_urlpatterns
-
 # 웹소켓 라우팅 설정 임포트 (Django 앱 초기화 후)
-from channels.auth import AuthMiddlewareStack
+from a_apis.auth.jwt_middleware import JWTAuthMiddlewareStack
+from a_apis.routing import websocket_urlpatterns
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
@@ -32,7 +31,7 @@ application = ProtocolTypeRouter(
         "http": django_asgi_app,
         # WebSocket 요청 처리
         "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+            JWTAuthMiddlewareStack(URLRouter(websocket_urlpatterns))
         ),
     }
 )

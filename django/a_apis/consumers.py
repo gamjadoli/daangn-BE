@@ -92,32 +92,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def can_connect_to_room(self):
-        """사용자가 채팅방에 접근할 수 있는지 확인 (디버깅용 로그 추가)"""
+        """사용자가 채팅방에 접근할 수 있는지 확인 (logger로 강제 출력)"""
+        import logging
+
+        logger = logging.getLogger("chatroom_debug")
         try:
             user = self.scope.get("user")
-            print("[DEBUG][can_connect_to_room] user:", user)
+            logger.error("[DEBUG][can_connect_to_room] user: %s", user)
             if not user or user.is_anonymous:
-                print("[DEBUG][can_connect_to_room] user is anonymous or not set")
+                logger.error(
+                    "[DEBUG][can_connect_to_room] user is anonymous or not set"
+                )
                 return False
 
             try:
                 chat_room = ChatRoom.objects.get(id=self.room_id)
-                print(f"[DEBUG][can_connect_to_room] chat_room found: {chat_room}")
+                logger.error(
+                    f"[DEBUG][can_connect_to_room] chat_room found: {chat_room}"
+                )
             except Exception as e:
-                print(f"[DEBUG][can_connect_to_room] chat_room get error: {e}")
+                logger.error(f"[DEBUG][can_connect_to_room] chat_room get error: {e}")
                 return False
 
             exists = ChatRoomParticipant.objects.filter(
                 chat_room=chat_room, user=user, is_active=True
             ).exists()
-            print(f"[DEBUG][can_connect_to_room] participant exists? {exists}")
+            logger.error(f"[DEBUG][can_connect_to_room] participant exists? {exists}")
             return exists
         except Exception as e:
-            print(f"[DEBUG][can_connect_to_room] Exception: {e}")
+            logger.error(f"[DEBUG][can_connect_to_room] Exception: {e}")
             return False
         except ChatRoom.DoesNotExist:
+            logger.error("[DEBUG][can_connect_to_room] ChatRoom.DoesNotExist")
             return False
-        except Exception:
+        except Exception as e:
+            logger.error(f"[DEBUG][can_connect_to_room] Unknown Exception: {e}")
             return False
 
     @database_sync_to_async

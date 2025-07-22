@@ -92,22 +92,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def can_connect_to_room(self):
-        """사용자가 채팅방에 접근할 수 있는지 확인"""
+        """사용자가 채팅방에 접근할 수 있는지 확인 (디버깅용 로그 추가)"""
         try:
-            # 현재 사용자 정보 가져오기
             user = self.scope.get("user")
-
-            # 인증되지 않은 사용자 처리
+            print("[DEBUG][can_connect_to_room] user:", user)
             if not user or user.is_anonymous:
+                print("[DEBUG][can_connect_to_room] user is anonymous or not set")
                 return False
 
-            # 채팅방 존재 여부 확인
-            chat_room = ChatRoom.objects.get(id=self.room_id)
+            try:
+                chat_room = ChatRoom.objects.get(id=self.room_id)
+                print(f"[DEBUG][can_connect_to_room] chat_room found: {chat_room}")
+            except Exception as e:
+                print(f"[DEBUG][can_connect_to_room] chat_room get error: {e}")
+                return False
 
-            # 채팅방 참여자 확인
-            return ChatRoomParticipant.objects.filter(
+            exists = ChatRoomParticipant.objects.filter(
                 chat_room=chat_room, user=user, is_active=True
             ).exists()
+            print(f"[DEBUG][can_connect_to_room] participant exists? {exists}")
+            return exists
+        except Exception as e:
+            print(f"[DEBUG][can_connect_to_room] Exception: {e}")
+            return False
         except ChatRoom.DoesNotExist:
             return False
         except Exception:

@@ -37,8 +37,14 @@ class JWTAuthMiddlewareInstance:
             params = parse_qs(query_string)
             token = params.get("token", [None])[0]
         user = await self.get_user(token)
-        self.scope["user"] = user
-        inner = self.inner(self.scope)
+        import logging
+
+        logger = logging.getLogger("chatroom_debug")
+        logger.error("[JWTAuthMiddleware] user set: %s", user)
+        # scope 복사본에 user를 넣고 inner에 전달
+        scope = dict(self.scope)
+        scope["user"] = user
+        inner = self.inner(scope)
         return await inner(receive, send)
 
     @database_sync_to_async

@@ -24,14 +24,12 @@ from a_apis.routing import websocket_urlpatterns
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
-# ASGI 애플리케이션 구성
+# ASGI 애플리케이션 구성 (AllowedHostsOriginValidator 제거)
 application = ProtocolTypeRouter(
     {
         # HTTP 요청 처리
         "http": django_asgi_app,
         # WebSocket 요청 처리
-        "websocket": AllowedHostsOriginValidator(
-            JWTAuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-        ),
+        "websocket": JWTAuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
     }
 )

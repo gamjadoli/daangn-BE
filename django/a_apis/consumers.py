@@ -10,6 +10,10 @@ from .models import ChatMessage, ChatRoom, ChatRoomParticipant
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        import logging
+
+        logger = logging.getLogger("chatroom_debug")
+        logger.error("[ChatConsumer.connect] called, user=%s", self.scope.get("user"))
         """WebSocket 연결 시 호출되는 메소드"""
         # URL에서 채팅방 ID 추출
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]

@@ -39,12 +39,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
-        """클라이언트로부터 메시지 수신 시 호출되는 메소드"""
+        """클라이언트로부터 메시지 수신 시 호출되는 메소드 (현업 방식: sender_id는 서버에서 강제 지정)"""
         try:
             # JSON 데이터 파싱
             text_data_json = json.loads(text_data)
             message = text_data_json["message"]
-            sender_id = text_data_json["sender_id"]
+            # sender_id는 인증된 유저 id로 강제 지정
+            sender_id = self.scope["user"].id
 
             # 선택적 파일 첨부
             file_id = text_data_json.get("file_id")
@@ -75,7 +76,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         except Exception as e:
             # 오류 발생 시 처리
-            await self.send(text_data=json.dumps({"error": str(e), "type": "error"}))
+            await self.send(
+                text_data=json.dumps(
+                    {"error": str(e), "type": "error"}, ensure_ascii=False
+                )
+            )
 
     async def chat_message(self, event):
         """채팅방 그룹으로부터 메시지 수신 시 호출되는 메소드"""
@@ -90,7 +95,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "timestamp": event["timestamp"],
                     "message_id": event["message_id"],
                     "file_url": event.get("file_url"),
-                }
+                },
+                ensure_ascii=False,
             )
         )
 

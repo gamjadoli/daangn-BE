@@ -1493,8 +1493,20 @@ class ProductService:
         product_id: int, user_id: int, buyer_id: int, final_price: int = None
     ) -> dict:
         """거래 완료 처리 서비스"""
+        import logging
+
+        logger = logging.getLogger("product_debug")
+
         try:
+            logger.error(
+                f"[complete_trade] 시작 - product_id: {product_id}, user_id: {user_id}, buyer_id: {buyer_id}, final_price: {final_price}"
+            )
+
             product = Product.objects.get(id=product_id)
+
+            logger.error(
+                f"[complete_trade] 상품 정보 - title: {product.title}, status: {product.status}, user_id: {product.user_id}"
+            )
 
             # 판매자 확인
             if product.user_id != user_id:
@@ -1509,7 +1521,11 @@ class ProductService:
 
             try:
                 buyer = User.objects.get(id=buyer_id)
+                logger.error(
+                    f"[complete_trade] 구매자 정보 - buyer_id: {buyer.id}, nickname: {buyer.nickname}"
+                )
             except User.DoesNotExist:
+                logger.error(f"[complete_trade] 구매자 없음 - buyer_id: {buyer_id}")
                 return {"success": False, "message": "존재하지 않는 구매자입니다."}
 
             # 판매자와 구매자가 동일한지 확인
@@ -1517,7 +1533,10 @@ class ProductService:
                 return {"success": False, "message": "자신에게 판매할 수 없습니다."}
 
             # 거래 완료 처리
+            logger.error(f"[complete_trade] mark_as_completed 호출 전")
             result = product.mark_as_completed(buyer, final_price)
+            logger.error(f"[complete_trade] mark_as_completed 결과: {result}")
+
             if not result:
                 return {"success": False, "message": "거래 완료 처리에 실패했습니다."}
 
@@ -1528,8 +1547,10 @@ class ProductService:
             }
 
         except Product.DoesNotExist:
+            logger.error(f"[complete_trade] 상품 없음 - product_id: {product_id}")
             return {"success": False, "message": "존재하지 않는 상품입니다."}
         except Exception as e:
+            logger.error(f"[complete_trade] 예외 발생 - error: {str(e)}")
             return {"success": False, "message": str(e)}
 
     @staticmethod

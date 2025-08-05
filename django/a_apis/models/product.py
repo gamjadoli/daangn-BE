@@ -147,7 +147,7 @@ class Product(CommonModel):
             self.status = self.Status.SOLDOUT
             self.buyer = buyer
             self.final_price = final_price if final_price else self.price
-            self.completed_at = models.timezone.now()
+            self.completed_at = timezone.now()
             self.trade_complete_status = self.TradeCompleteStatus.COMPLETED
 
             logger.error(

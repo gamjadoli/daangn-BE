@@ -135,12 +135,25 @@ class Product(CommonModel):
 
     def mark_as_completed(self, buyer, final_price=None):
         """거래 완료 처리 메서드"""
+        import logging
+
+        logger = logging.getLogger("product_debug")
+
         try:
+            logger.error(
+                f"[mark_as_completed] 시작 - product_id: {self.id}, buyer: {buyer}, final_price: {final_price}"
+            )
+
             self.status = self.Status.SOLDOUT
             self.buyer = buyer
             self.final_price = final_price if final_price else self.price
             self.completed_at = models.timezone.now()
             self.trade_complete_status = self.TradeCompleteStatus.COMPLETED
+
+            logger.error(
+                f"[mark_as_completed] 저장 전 - status: {self.status}, buyer_id: {self.buyer.id if self.buyer else None}"
+            )
+
             self.save(
                 update_fields=[
                     "status",
@@ -151,8 +164,13 @@ class Product(CommonModel):
                     "updated_at",
                 ]
             )
+
+            logger.error(f"[mark_as_completed] 성공 - product_id: {self.id}")
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(
+                f"[mark_as_completed] 오류 발생 - product_id: {self.id}, error: {str(e)}"
+            )
             return False
 
 
